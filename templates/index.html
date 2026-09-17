@@ -823,9 +823,7 @@
       playerDialog?.close();
     };
     document.querySelector('[data-close-player]')?.addEventListener('click', closePlayer);
-    playerDialog?.addEventListener('click', (event) => {
-      if (event.target === playerDialog) closePlayer();
-    });
+    playerDialog?.addEventListener('cancel', (event) => event.preventDefault());
 
     document.querySelectorAll('[data-open-group]').forEach((card) => {
       const openGroup = () => {
@@ -841,6 +839,9 @@
         openGroup();
       });
       card.addEventListener('keydown', (event) => {
+        if (event.target.closest('dialog') || event.target.matches('input, textarea, select, button')) {
+          return;
+        }
         if (event.key === 'Enter' || event.key === ' ') {
           event.preventDefault();
           openGroup();
@@ -854,12 +855,8 @@
       });
     });
 
-    document.querySelectorAll('dialog').forEach((dialog) => {
-      dialog.addEventListener('click', (event) => {
-        if (event.target === dialog) {
-          dialog.close();
-        }
-      });
+    document.querySelectorAll('.edit-dialog').forEach((dialog) => {
+      dialog.addEventListener('cancel', (event) => event.preventDefault());
     });
 
     document.querySelectorAll('[data-apply-group]').forEach((button) => {
