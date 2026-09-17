@@ -4,7 +4,7 @@ from pathlib import Path
 from typing import Annotated
 
 from fastapi import FastAPI, Form, Request
-from fastapi.responses import HTMLResponse, JSONResponse
+from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
@@ -205,6 +205,7 @@ async def index(
             destination_root=target_root,
             filter_text=filter_text,
         )
+
     except ValueError as exc:
         return render_index(
             request,
@@ -213,6 +214,23 @@ async def index(
             destination_root=current_library["destination_root"].resolve(),
             message=str(exc),
         )
+
+
+@app.get("/media")
+async def media_file(path: str) -> FileResponse:
+    """Serve only media files inside a configured library for in-app playback."""
+    candidate = Path(path).expanduser().resolve()
+    if not is_allowed_root(candidate) or not candidate.is_file() or candidate.suffix.lower() not in services.VIDEO_EXTENSIONS:
+        from fastapi import HTTPException
+
+        raise HTTPException(status_code=404, detail="Arquivo de mídia não encontrado")
+
+    media_types = {
+        ".mp4": "video/mp4",
+        ".m4v": "video/mp4",
+        ".mov": "video/quicktime",
+    }
+    return FileResponse(candidate, media_type=media_types.get(candidate.suffix.lower(), "video/mp4"), filename=candidate.name)
 
 
 @app.post("/apply", response_class=HTMLResponse)

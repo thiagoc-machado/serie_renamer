@@ -494,6 +494,47 @@ button.danger {
   overflow: auto;
 }
 
+.player-dialog {
+  width: min(960px, calc(100vw - 32px));
+  max-width: 960px;
+  padding: 24px;
+  color: var(--ink);
+  border: 1px solid var(--line);
+  border-radius: 22px;
+  background: #f7f9fa;
+  box-shadow: 0 30px 100px rgba(23, 33, 43, 0.3);
+}
+
+.player-dialog::backdrop {
+  background: rgba(23, 33, 43, 0.64);
+  backdrop-filter: blur(3px);
+}
+
+.player-dialog video {
+  display: block;
+  width: 100%;
+  max-height: 70vh;
+  border-radius: 12px;
+  background: #101820;
+}
+
+.player-dialog #player-file-name {
+  margin: 10px 0 0;
+  overflow-wrap: anywhere;
+}
+
+.play-button {
+  padding: 8px 10px;
+  color: #24566c;
+  background: #e4f0f5;
+  font-size: 0.8rem;
+  white-space: nowrap;
+}
+
+.play-button:hover {
+  background: #d3e8f0;
+}
+
 .edit-dialog::backdrop {
   background: rgba(28, 23, 20, 0.58);
   backdrop-filter: blur(3px);
@@ -724,7 +765,7 @@ details.group-card > summary::-webkit-details-marker {
 .table-head,
 .table-row {
   display: grid;
-  grid-template-columns: 30px minmax(180px, 1.2fr) minmax(180px, 1fr) minmax(180px, 1fr) minmax(90px, 0.5fr) minmax(90px, 0.5fr) minmax(240px, 1.1fr) minmax(120px, 0.7fr);
+  grid-template-columns: 30px minmax(180px, 1.2fr) 120px minmax(180px, 1fr) minmax(180px, 1fr) minmax(90px, 0.5fr) minmax(90px, 0.5fr) minmax(240px, 1.1fr) minmax(120px, 0.7fr);
   gap: 10px;
   align-items: center;
   min-width: 0;
@@ -1037,6 +1078,17 @@ details.group-card > summary::-webkit-details-marker {
     width: calc(100vw - 16px);
     max-height: calc(100vh - 16px);
     padding: 16px;
+  }
+
+  .player-dialog {
+    width: calc(100vw - 16px);
+    padding: 16px;
+  }
+}
+
+@media (max-width: 1100px) {
+  .table-row > .play-button {
+    display: inline-flex !important;
   }
 }
 

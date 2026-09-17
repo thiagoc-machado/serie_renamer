@@ -227,19 +227,6 @@
         </div>
       </div>
 
-      <div class="directory-browser">
-        <div class="section-head compact">
-          <div>
-            <p class="eyebrow">Navegador</p>
-            <h3>Diretórios</h3>
-            <p class="muted">Expanda a árvore e pule direto para a pasta que quer tratar.</p>
-          </div>
-        </div>
-        {% if directory_tree %}
-        {{ render_directory_node(directory_tree, 'séries') }}
-        {% endif %}
-      </div>
-
       <form method="post" action="/preview" id="series-form" class="stack">
         <input type="hidden" name="library" value="{{ current_library.key }}">
         <input type="hidden" name="scan_root" value="{{ scan_root }}">
@@ -303,6 +290,7 @@
               <div class="table-head">
                 <span></span>
                 <span>Arquivo</span>
+                <span>Ação</span>
                 <span>Pasta</span>
                 <span>Série</span>
                 <span>Temp.</span>
@@ -320,6 +308,7 @@
                   <span class="sr-only">Arquivo</span>
                   <input type="text" value="{{ entry.filename }}" disabled>
                 </label>
+                <button type="button" class="play-button" data-play-path="{{ entry.source_path }}" data-play-name="{{ entry.filename }}">▶ Reproduzir</button>
                 <label>
                   <span class="sr-only">Pasta</span>
                   <input type="text" value="{{ entry.relative_dir }}" disabled>
@@ -387,6 +376,19 @@
         <p class="muted">Nenhuma série compatível foi encontrada nessa pasta.</p>
         {% endif %}
       </form>
+
+      <div class="directory-browser directory-browser-secondary">
+        <div class="section-head compact">
+          <div>
+            <p class="eyebrow">Navegação auxiliar</p>
+            <h3>Árvore de diretórios</h3>
+            <p class="muted">Use a árvore para localizar rapidamente uma pasta específica.</p>
+          </div>
+        </div>
+        {% if directory_tree %}
+        {{ render_directory_node(directory_tree, 'séries') }}
+        {% endif %}
+      </div>
     </section>
 
     <section id="patterns" class="tab-panel" data-tab-panel="patterns" role="tabpanel" aria-labelledby="patterns-tab">
@@ -459,6 +461,7 @@
               <div class="table-head">
                 <span></span>
                 <span>Arquivo</span>
+                <span>Ação</span>
                 <span>Pasta</span>
                 <span>Série</span>
                 <span>Temp.</span>
@@ -476,6 +479,7 @@
                   <span class="sr-only">Arquivo</span>
                   <input type="text" value="{{ entry.filename }}" disabled>
                 </label>
+                <button type="button" class="play-button" data-play-path="{{ entry.source_path }}" data-play-name="{{ entry.filename }}">▶ Reproduzir</button>
                 <label>
                   <span class="sr-only">Pasta</span>
                   <input type="text" value="{{ entry.relative_dir }}" disabled>
@@ -744,6 +748,20 @@
     </section>
   </main>
 
+  <dialog id="player-dialog" class="player-dialog" aria-labelledby="player-title">
+    <div class="dialog-head">
+      <div>
+        <p class="group-kicker">Pré-visualização</p>
+        <h2 id="player-title">Reproduzir episódio</h2>
+      </div>
+      <button type="button" class="secondary" data-close-player>Fechar</button>
+    </div>
+    <video id="media-player" controls preload="metadata">
+      Seu navegador não suporta reprodução de vídeo.
+    </video>
+    <p id="player-file-name" class="muted"></p>
+  </dialog>
+
   <script>
     const tabButtons = document.querySelectorAll('[data-tab]');
     const tabPanels = document.querySelectorAll('[data-tab-panel]');
@@ -786,6 +804,28 @@
     if (document.querySelector(`[data-tab-panel="${initialTab}"]`)) {
       setActiveTab(initialTab, false);
     }
+
+    const playerDialog = document.getElementById('player-dialog');
+    const mediaPlayer = document.getElementById('media-player');
+    const playerFileName = document.getElementById('player-file-name');
+    document.querySelectorAll('[data-play-path]').forEach((button) => {
+      button.addEventListener('click', () => {
+        if (!playerDialog || !mediaPlayer) return;
+        mediaPlayer.src = `/media?path=${encodeURIComponent(button.dataset.playPath || '')}`;
+        mediaPlayer.load();
+        if (playerFileName) playerFileName.textContent = button.dataset.playName || '';
+        playerDialog.showModal();
+      });
+    });
+    const closePlayer = () => {
+      mediaPlayer?.pause();
+      if (mediaPlayer) mediaPlayer.removeAttribute('src');
+      playerDialog?.close();
+    };
+    document.querySelector('[data-close-player]')?.addEventListener('click', closePlayer);
+    playerDialog?.addEventListener('click', (event) => {
+      if (event.target === playerDialog) closePlayer();
+    });
 
     document.querySelectorAll('[data-open-group]').forEach((card) => {
       const openGroup = () => {
