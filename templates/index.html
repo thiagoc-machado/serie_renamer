@@ -250,7 +250,14 @@
         <div class="folder-index" aria-label="Pastas de séries">
           {% for group in series_groups %}
           {% set group_id = "series-" ~ loop.index0 %}
-          <article class="folder-card" id="{{ group.anchor_id }}">
+          <article
+            class="folder-card"
+            id="{{ group.anchor_id }}"
+            data-open-group="{{ group_id }}"
+            role="button"
+            tabindex="0"
+            aria-label="Abrir edição de {{ group.display_name }}"
+          >
             <div class="folder-card-main">
               <div>
                 <p class="group-kicker">{{ group.display_name }}</p>
@@ -259,7 +266,7 @@
               </div>
               <div class="folder-card-meta">
                 <span class="summary-pill">{{ group.entries|length }} episódios</span>
-                <button type="button" class="primary" data-open-group="{{ group_id }}">Abrir edição</button>
+                <span class="card-action-hint">Clique para editar →</span>
               </div>
             </div>
 
@@ -780,11 +787,23 @@
       setActiveTab(initialTab, false);
     }
 
-    document.querySelectorAll('[data-open-group]').forEach((button) => {
-      button.addEventListener('click', () => {
-        const dialog = document.getElementById(`dialog-${button.dataset.openGroup}`);
+    document.querySelectorAll('[data-open-group]').forEach((card) => {
+      const openGroup = () => {
+        const dialog = document.getElementById(`dialog-${card.dataset.openGroup}`);
         if (dialog?.showModal) {
           dialog.showModal();
+        }
+      };
+      card.addEventListener('click', (event) => {
+        if (event.target.closest('dialog')) {
+          return;
+        }
+        openGroup();
+      });
+      card.addEventListener('keydown', (event) => {
+        if (event.key === 'Enter' || event.key === ' ') {
+          event.preventDefault();
+          openGroup();
         }
       });
     });

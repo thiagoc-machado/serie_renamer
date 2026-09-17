@@ -1,15 +1,15 @@
 :root {
-  --bg: #f5f1ea;
-  --bg-2: #efe6da;
-  --ink: #1c1714;
-  --muted: #6e645d;
-  --card: rgba(255, 252, 247, 0.88);
-  --line: rgba(28, 23, 20, 0.12);
-  --accent: #b85c2d;
-  --accent-2: #7f4c27;
-  --ok: #24613a;
-  --error: #8f2727;
-  --shadow: 0 22px 54px rgba(55, 38, 28, 0.12);
+  --bg: #f3f5f7;
+  --bg-2: #e8edf1;
+  --ink: #17212b;
+  --muted: #607080;
+  --card: rgba(255, 255, 255, 0.92);
+  --line: rgba(23, 33, 43, 0.12);
+  --accent: #d2603b;
+  --accent-2: #984126;
+  --ok: #16724b;
+  --error: #b23838;
+  --shadow: 0 18px 46px rgba(34, 52, 68, 0.09);
 }
 
 * {
@@ -26,8 +26,8 @@ body {
   font-family: "Avenir Next", "Trebuchet MS", sans-serif;
   overflow-x: hidden;
   background:
-    radial-gradient(circle at top left, rgba(184, 92, 45, 0.14), transparent 26%),
-    radial-gradient(circle at bottom right, rgba(36, 97, 58, 0.1), transparent 20%),
+    radial-gradient(circle at 0% 0%, rgba(210, 96, 59, 0.11), transparent 25%),
+    radial-gradient(circle at 100% 100%, rgba(53, 116, 143, 0.1), transparent 24%),
     linear-gradient(180deg, var(--bg) 0%, var(--bg-2) 100%);
 }
 
@@ -61,7 +61,7 @@ a {
 .panel,
 .tab-link {
   border: 1px solid var(--line);
-  border-radius: 24px;
+  border-radius: 20px;
   background: var(--card);
   box-shadow: var(--shadow);
   backdrop-filter: blur(10px);
@@ -69,7 +69,7 @@ a {
 
 .hero,
 .panel {
-  padding: 24px;
+  padding: 22px;
   min-width: 0;
 }
 
@@ -77,7 +77,7 @@ a {
   display: grid;
   grid-template-columns: minmax(0, 1.45fr) minmax(230px, 0.75fr);
   gap: 14px;
-  margin-bottom: 16px;
+  margin-bottom: 14px;
   padding: 18px 20px;
 }
 
@@ -102,7 +102,7 @@ a {
 
 h1 {
   font-size: clamp(1.9rem, 3.2vw, 3.1rem);
-  line-height: 0.98;
+  line-height: 1.02;
   margin-bottom: 8px;
   max-width: 16ch;
 }
@@ -137,14 +137,14 @@ h1 {
 .library-tabs,
 .page-tabs {
   display: grid;
-  gap: 12px;
+  gap: 8px;
   margin-bottom: 18px;
 }
 
 .library-tabs {
   grid-template-columns: repeat(5, minmax(0, 1fr));
   padding: 8px;
-  border-radius: 22px;
+  border-radius: 16px;
   border: 1px solid var(--line);
   background: rgba(255, 255, 255, 0.48);
   box-shadow: var(--shadow);
@@ -171,7 +171,7 @@ h1 {
   border: 1px solid var(--line);
   background: rgba(255, 255, 255, 0.74);
   border-radius: 18px;
-  min-height: 78px;
+  min-height: 70px;
   align-content: center;
   transition: transform 120ms ease, box-shadow 120ms ease, border-color 120ms ease, background 120ms ease;
 }
@@ -197,8 +197,9 @@ h1 {
 }
 
 .page-tab.active {
-  background: rgba(255, 255, 255, 0.82);
-  box-shadow: inset 0 -3px 0 var(--accent);
+  color: var(--accent-2);
+  background: #fff;
+  box-shadow: 0 4px 14px rgba(34, 52, 68, 0.08), inset 0 -3px 0 var(--accent);
 }
 
 .tab-link.active {
@@ -312,8 +313,8 @@ select {
   width: 100%;
   border: 1px solid rgba(28, 23, 20, 0.16);
   background: rgba(255, 255, 255, 0.96);
-  border-radius: 14px;
-  padding: 11px 14px;
+  border-radius: 11px;
+  padding: 10px 12px;
   font: inherit;
   color: var(--ink);
   min-width: 0;
@@ -332,25 +333,25 @@ select:focus {
 
 button {
   border: 0;
-  border-radius: 14px;
-  padding: 12px 18px;
+  border-radius: 11px;
+  padding: 10px 15px;
   font: inherit;
   font-weight: 700;
   cursor: pointer;
 }
 
 button.primary {
-  background: linear-gradient(135deg, var(--accent) 0%, #d97739 100%);
+  background: linear-gradient(135deg, var(--accent) 0%, #bd4727 100%);
   color: #fff;
 }
 
 button.secondary {
-  background: rgba(28, 23, 20, 0.08);
+  background: #e8edf1;
   color: var(--ink);
 }
 
 button.danger {
-  background: linear-gradient(135deg, #8f2727 0%, #b63a3a 100%);
+  background: linear-gradient(135deg, #a82f35 0%, #81252c 100%);
   color: #fff;
 }
 
@@ -440,6 +441,16 @@ button.danger {
   border-radius: 20px;
   background: rgba(255, 255, 255, 0.68);
   box-shadow: 0 8px 22px rgba(45, 32, 24, 0.06);
+  cursor: pointer;
+  transition: transform 140ms ease, border-color 140ms ease, box-shadow 140ms ease;
+}
+
+.folder-card:hover,
+.folder-card:focus-visible {
+  transform: translateY(-2px);
+  border-color: rgba(184, 92, 45, 0.42);
+  box-shadow: 0 14px 30px rgba(45, 32, 24, 0.12);
+  outline: none;
 }
 
 .folder-card-main,
@@ -461,6 +472,13 @@ button.danger {
   flex-direction: column;
   align-items: flex-end;
   flex: 0 0 auto;
+}
+
+.card-action-hint {
+  color: var(--accent-2);
+  font-size: 0.8rem;
+  font-weight: 700;
+  white-space: nowrap;
 }
 
 .edit-dialog {
@@ -1019,5 +1037,155 @@ details.group-card > summary::-webkit-details-marker {
     width: calc(100vw - 16px);
     max-height: calc(100vh - 16px);
     padding: 16px;
+  }
+}
+
+/* Refinements: clearer density, hierarchy and interaction states. */
+.shell {
+  max-width: 1480px;
+}
+
+.hero-copy,
+.panel,
+.directory-browser,
+.folder-card,
+.group-card,
+.result-panel {
+  border-color: rgba(23, 33, 43, 0.1);
+}
+
+.hero .eyebrow,
+.section-head .eyebrow {
+  font-weight: 800;
+}
+
+.library-tabs,
+.page-tabs {
+  position: sticky;
+  top: 10px;
+  z-index: 5;
+  backdrop-filter: blur(14px);
+}
+
+.library-tabs {
+  background: rgba(232, 237, 241, 0.82);
+}
+
+.page-tabs {
+  margin-top: 20px;
+  top: 92px;
+  background: rgba(232, 237, 241, 0.88);
+}
+
+.tab-link,
+.page-tab,
+button,
+input,
+select {
+  transition: border-color 140ms ease, box-shadow 140ms ease, background 140ms ease, transform 140ms ease;
+}
+
+button:hover {
+  transform: translateY(-1px);
+}
+
+button:active {
+  transform: translateY(0);
+}
+
+button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+select:focus-visible {
+  outline: 3px solid rgba(210, 96, 59, 0.28);
+  outline-offset: 2px;
+}
+
+.group-kicker {
+  margin-bottom: 6px;
+  color: var(--accent-2);
+  font-weight: 800;
+}
+
+.folder-card {
+  min-height: 142px;
+  display: flex;
+  align-items: stretch;
+}
+
+.folder-card-main {
+  width: 100%;
+}
+
+.folder-card-meta {
+  justify-content: space-between;
+}
+
+.folder-card:hover .card-action-hint,
+.folder-card:focus-visible .card-action-hint {
+  color: var(--accent);
+}
+
+.folder-index,
+.group-list {
+  align-items: start;
+}
+
+.edit-dialog {
+  padding: 28px;
+  background: #f7f9fa;
+}
+
+.edit-dialog .dialog-head {
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--line);
+}
+
+.edit-dialog .group-controls {
+  padding: 14px;
+  border-radius: 14px;
+  background: #eef2f5;
+}
+
+.edit-dialog .table-row {
+  background: #fff;
+  border-color: rgba(23, 33, 43, 0.1);
+}
+
+.edit-dialog .table-head {
+  font-size: 0.75rem;
+  font-weight: 800;
+}
+
+.summary-pill {
+  color: var(--muted);
+  background: #f7f9fa;
+  border-color: rgba(23, 33, 43, 0.12);
+}
+
+.search-status {
+  background: #fff;
+}
+
+.delete-zone {
+  border-left: 4px solid var(--error);
+  box-shadow: 0 5px 15px rgba(178, 56, 56, 0.06);
+}
+
+.flash {
+  padding: 11px 14px;
+  border-radius: 10px;
+  background: rgba(22, 114, 75, 0.1);
+  font-weight: 700;
+}
+
+@media (max-width: 720px) {
+  .library-tabs,
+  .page-tabs {
+    position: static;
+  }
+
+  .edit-dialog {
+    padding: 18px;
   }
 }
