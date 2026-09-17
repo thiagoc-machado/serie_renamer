@@ -41,6 +41,10 @@ RAW_PATTERNS = [
 ORGANIZED_PATTERNS = [
     re.compile(r".+\s-\sS\d{2}E\d{2,3}(\s-\s.+)?$", re.IGNORECASE),
 ]
+ORGANIZED_EPISODE_PATTERN = re.compile(
+    r"^(?P<name>.+?)\s+-\s+S(?P<season>\d{1,2})E(?P<episode>\d{1,3})(?:\s+-\s+.+)?$",
+    re.IGNORECASE,
+)
 SAFE_CHARS = re.compile(r"[^A-Za-z0-9À-ÿ _.\-]+")
 MULTI_SPACE = re.compile(r"\s+")
 GENERIC_FOLDER_NAMES = {"tv", "shows", "series", "temporadas", "videos", "media"}
@@ -312,7 +316,13 @@ def extract_series_folder(path: Path, root: Path) -> tuple[str, str]:
     else:
         series_folder = sanitize_name(path.parent.name) or sanitize_name(root.name) or path.stem
 
-    folder_path = str(path.parent.relative_to(root))
+    # A series is the folder before the first Season/Sxx directory. This keeps
+    # all seasons in one editable batch instead of creating one group per season.
+    season_index = next(
+        (index for index, part in enumerate(parts) if is_season_folder_name(part)),
+        len(parts),
+    )
+    folder_path = str(Path(*parts[:season_index])) if season_index else "."
     return folder_path, series_folder
 
 
@@ -647,6 +657,17 @@ def candidate_from_patterns(path: Path) -> tuple[str, re.Match[str]] | None:
     return None
 
 
+def episode_details(path: Path) -> tuple[str, re.Match[str], bool] | None:
+    """Read both incoming names and names already in the Radarr/Sonarr style."""
+    raw = candidate_from_patterns(path)
+    if raw:
+        return raw[0], raw[1], False
+    organized = ORGANIZED_EPISODE_PATTERN.match(path.stem)
+    if organized:
+        return ORGANIZED_EPISODE_PATTERN.pattern, organized, True
+    return None
+
+
 def looks_organized(path: Path) -> bool:
     if any(part.lower().startswith("season ") for part in path.parts):
         return True
@@ -836,14 +857,13 @@ def scan_library(root: Path, *, filter_text: str = "") -> dict[str, Any]:
             video_files.append(path)
 
     for path in video_files:
-        matched = candidate_from_patterns(path)
+        matched = episode_details(path)
         if not matched:
             continue
 
-        pattern_name, match = matched
+        pattern_name, match, organized = matched
         season = int(match.group("season"))
         episode = int(match.group("episode"))
-        organized = looks_organized(path)
         folder_path, series_folder = extract_series_folder(path, root)
         display_name = _folder_display_name(series_folder, aliases)
         metadata_series_name = extract_metadata_series_name(path)
@@ -1341,6 +1361,43 @@ def delete_empty_folders(folders: list[Path], *, dry_run: bool = False) -> dict[
         messages["history_batch_id"] = batch_id
         messages["integrations"] = trigger_integrations()
 
+    return messages
+
+
+def delete_media_items(items: list[Path], *, dry_run: bool = False) -> dict[str, Any]:
+    """Remove explicitly selected media, or directories only when empty."""
+    messages: dict[str, Any] = {
+        "updated": [],
+        "errors": [],
+        "preview": [],
+        "history_batch_id": None,
+        "integrations": [],
+    }
+    for item in items:
+        resolved = item.resolve()
+        if not any(root != resolved and root in resolved.parents for root in ALLOWED_ROOTS):
+            messages["errors"].append(outside_allowed_roots_message(resolved))
+            continue
+        if not resolved.exists():
+            messages["errors"].append(f"{resolved}: item não encontrado.")
+            continue
+        if dry_run:
+            messages["preview"].append(str(resolved))
+            continue
+        try:
+            if resolved.is_dir():
+                if any(resolved.iterdir()):
+                    messages["errors"].append(f"{resolved}: pasta não está vazia.")
+                    continue
+                resolved.rmdir()
+                messages["updated"].append(f"Pasta removida: {resolved}")
+            else:
+                resolved.unlink()
+                messages["updated"].append(f"Arquivo removido: {resolved}")
+        except Exception as exc:  # pragma: no cover
+            messages["errors"].append(f"{resolved}: {exc}")
+    if messages["updated"]:
+        messages["integrations"] = trigger_integrations()
     return messages
 
 

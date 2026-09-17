@@ -100,6 +100,12 @@
       {% endif %}
     </section>
 
+    <section class="workflow-panel" aria-label="Fluxo de trabalho">
+      <div class="workflow-step"><span>01</span><div><strong>Escolha uma pasta</strong><small>Um cartão = uma série completa</small></div></div>
+      <div class="workflow-step"><span>02</span><div><strong>Revise os episódios</strong><small>Nome, temporada e episódio são editáveis</small></div></div>
+      <div class="workflow-step"><span>03</span><div><strong>Prévia e renomeio</strong><small><b data-selection-count>0</b> selecionados agora</small></div></div>
+    </section>
+
     {% if result %}
     <section class="panel result-panel">
       <div class="result-grid">
@@ -213,7 +219,7 @@
         <div>
           <p class="eyebrow">Aba 1</p>
           <h2>Séries do servidor</h2>
-          <p class="muted">Use o nome da pasta como base. Marque as linhas que quer mover/renomear.</p>
+          <p class="muted">Cada cartão representa uma série inteira. Arquivos já organizados continuam visíveis para corrigir nome, temporada ou episódio.</p>
         </div>
         <div class="button-row">
           <button type="submit" form="series-form" class="secondary" formaction="/preview">Prévia</button>
@@ -241,19 +247,31 @@
         <input type="hidden" name="filter_text" value="{{ filter_text }}">
 
         {% if series_groups %}
-        <div class="group-list">
+        <div class="folder-index" aria-label="Pastas de séries">
           {% for group in series_groups %}
           {% set group_id = "series-" ~ loop.index0 %}
-          <details class="group-card" id="{{ group.anchor_id }}" open>
-            <summary class="group-summary">
+          <article class="folder-card" id="{{ group.anchor_id }}">
+            <div class="folder-card-main">
               <div>
                 <p class="group-kicker">{{ group.display_name }}</p>
                 <h3>{{ group.count }} arquivos • temporadas {{ group.seasons|join(', ') }}</h3>
                 <p class="muted">{{ group.folder_path }}</p>
               </div>
-              <span class="summary-pill">{{ group.entries|length }} itens</span>
-            </summary>
+              <div class="folder-card-meta">
+                <span class="summary-pill">{{ group.entries|length }} episódios</span>
+                <button type="button" class="primary" data-open-group="{{ group_id }}">Abrir edição</button>
+              </div>
+            </div>
 
+            <dialog class="edit-dialog" id="dialog-{{ group_id }}" aria-labelledby="dialog-title-{{ group_id }}">
+            <div class="dialog-head">
+              <div>
+                <p class="group-kicker">Edição em lote</p>
+                <h2 id="dialog-title-{{ group_id }}">{{ group.display_name }}</h2>
+                <p class="muted">{{ group.count }} arquivos • {{ group.folder_path }}</p>
+              </div>
+              <button type="button" class="secondary dialog-close" data-close-group="{{ group_id }}" aria-label="Fechar">Fechar</button>
+            </div>
             <div class="group-controls" data-folder-path="{{ group.folder_path }}">
               <div class="group-controls-primary">
                 <label>
@@ -266,7 +284,7 @@
               <div class="group-controls-actions">
                 <label class="inline-check">
                   <input type="checkbox" data-toggle-group="{{ group_id }}">
-                  Selecionar tudo do grupo
+                  Selecionar a pasta inteira
                 </label>
                 <button type="button" class="secondary" data-fill-series-folder="{{ group_id }}">Usar pasta como série</button>
                 <button type="button" class="secondary" data-apply-group="{{ group_id }}">Aplicar nome ao grupo</button>
@@ -274,7 +292,7 @@
               </div>
             </div>
 
-            <div class="table-grid">
+            <div class="table-grid series-table">
               <div class="table-head">
                 <span></span>
                 <span>Arquivo</span>
@@ -283,6 +301,7 @@
                 <span>Temp.</span>
                 <span>Epis.</span>
                 <span>Título do episódio</span>
+                <span>Estado</span>
               </div>
               {% for entry in group.entries %}
               <div class="table-row" data-group="{{ group_id }}">
@@ -325,17 +344,36 @@
                     data-group-title-input="{{ group_id }}"
                   >
                 </label>
+                <span class="file-state {% if entry.organized %}state-organized{% else %}state-raw{% endif %}">
+                  {% if entry.organized %}Organizado{% else %}Precisa organizar{% endif %}
+                </span>
               </div>
               {% endfor %}
             </div>
+            <div class="delete-zone">
+              <div>
+                <strong>Excluir arquivos selecionados</strong>
+                <p>Esta ação é permanente. Pastas só serão removidas se estiverem vazias.</p>
+              </div>
+              <label class="inline-check">
+                <input type="checkbox" name="confirm_delete" value="yes">
+                Confirmo que quero apagar os selecionados.
+              </label>
+              <label>
+                <span>Digite APAGAR para liberar</span>
+                <input type="text" name="delete_confirmation" autocomplete="off" placeholder="APAGAR">
+              </label>
+              <button type="submit" class="danger" formaction="/delete-media">Excluir selecionados</button>
+            </div>
             <div class="group-footer button-row">
-              <span class="muted">Marque os episódios que quer alterar antes de gravar no arquivo.</span>
+              <span class="muted">{{ group.count }} arquivos nesta pasta • selecione só os que deseja alterar.</span>
               <div class="button-row">
                 <button type="submit" class="secondary" formaction="/preview">Prévia do grupo</button>
                 <button type="submit" class="primary" formaction="/apply">Renomear selecionados</button>
               </div>
             </div>
-          </details>
+            </dialog>
+          </article>
           {% endfor %}
         </div>
         {% else %}
@@ -410,7 +448,7 @@
               </div>
             </div>
 
-            <div class="table-grid">
+            <div class="table-grid series-table">
               <div class="table-head">
                 <span></span>
                 <span>Arquivo</span>
@@ -419,6 +457,7 @@
                 <span>Temp.</span>
                 <span>Epis.</span>
                 <span>Título do episódio</span>
+                <span>Estado</span>
               </div>
               {% for entry in group.entries %}
               <div class="table-row" data-group="{{ group_id }}">
@@ -461,6 +500,7 @@
                     data-group-title-input="{{ group_id }}"
                   >
                 </label>
+                <span class="file-state state-raw">Nome cru</span>
               </div>
               {% endfor %}
             </div>
@@ -701,6 +741,16 @@
     const tabButtons = document.querySelectorAll('[data-tab]');
     const tabPanels = document.querySelectorAll('[data-tab-panel]');
 
+    const updateSelectionCount = () => {
+      const count = document.querySelectorAll('input[type="checkbox"][name="selected_path"]:checked').length;
+      document.querySelectorAll('[data-selection-count]').forEach((item) => {
+        item.textContent = count;
+      });
+    };
+    document.querySelectorAll('input[type="checkbox"][name="selected_path"]').forEach((item) => {
+      item.addEventListener('change', updateSelectionCount);
+    });
+
     const setActiveTab = (tabName, updateHash = true) => {
       tabButtons.forEach((button) => {
         const active = button.dataset.tab === tabName;
@@ -729,6 +779,29 @@
     if (document.querySelector(`[data-tab-panel="${initialTab}"]`)) {
       setActiveTab(initialTab, false);
     }
+
+    document.querySelectorAll('[data-open-group]').forEach((button) => {
+      button.addEventListener('click', () => {
+        const dialog = document.getElementById(`dialog-${button.dataset.openGroup}`);
+        if (dialog?.showModal) {
+          dialog.showModal();
+        }
+      });
+    });
+
+    document.querySelectorAll('[data-close-group]').forEach((button) => {
+      button.addEventListener('click', () => {
+        document.getElementById(`dialog-${button.dataset.closeGroup}`)?.close();
+      });
+    });
+
+    document.querySelectorAll('dialog').forEach((dialog) => {
+      dialog.addEventListener('click', (event) => {
+        if (event.target === dialog) {
+          dialog.close();
+        }
+      });
+    });
 
     document.querySelectorAll('[data-apply-group]').forEach((button) => {
       button.addEventListener('click', () => {
@@ -856,8 +929,10 @@
         document.querySelectorAll(`[data-group="${groupId}"] input[type="checkbox"][name="selected_path"]`).forEach((item) => {
           item.checked = checkbox.checked;
         });
+        updateSelectionCount();
       });
     });
+    updateSelectionCount();
 
     const aliasSelectAll = document.querySelector('[data-alias-select-all]');
     if (aliasSelectAll) {

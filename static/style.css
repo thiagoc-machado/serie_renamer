@@ -217,6 +217,46 @@ h1 {
   gap: 16px;
 }
 
+.workflow-panel {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1px;
+  margin: 0 0 18px;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  background: var(--line);
+}
+
+.workflow-step {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  padding: 14px 16px;
+  background: rgba(255, 252, 247, 0.72);
+}
+
+.workflow-step > span {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  flex: 0 0 32px;
+  border-radius: 50%;
+  color: #fff;
+  background: var(--accent);
+  font: 700 0.78rem "Courier Prime", "Menlo", monospace;
+}
+
+.workflow-step div {
+  display: grid;
+  gap: 3px;
+}
+
+.workflow-step small {
+  color: var(--muted);
+}
+
 .grid {
   display: grid;
   gap: 16px;
@@ -388,6 +428,72 @@ button.danger {
   gap: 14px;
 }
 
+.folder-index {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 12px;
+}
+
+.folder-card {
+  padding: 16px;
+  border: 1px solid var(--line);
+  border-radius: 20px;
+  background: rgba(255, 255, 255, 0.68);
+  box-shadow: 0 8px 22px rgba(45, 32, 24, 0.06);
+}
+
+.folder-card-main,
+.folder-card-meta,
+.dialog-head {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  justify-content: space-between;
+  min-width: 0;
+}
+
+.folder-card-main h3 {
+  margin-bottom: 5px;
+  font-size: 1.05rem;
+}
+
+.folder-card-meta {
+  flex-direction: column;
+  align-items: flex-end;
+  flex: 0 0 auto;
+}
+
+.edit-dialog {
+  width: min(1280px, calc(100vw - 32px));
+  max-width: 1280px;
+  max-height: calc(100vh - 32px);
+  padding: 24px;
+  color: var(--ink);
+  border: 1px solid var(--line);
+  border-radius: 24px;
+  background: var(--bg);
+  box-shadow: 0 30px 100px rgba(28, 23, 20, 0.28);
+  overflow: auto;
+}
+
+.edit-dialog::backdrop {
+  background: rgba(28, 23, 20, 0.58);
+  backdrop-filter: blur(3px);
+}
+
+.dialog-head {
+  margin-bottom: 14px;
+  align-items: flex-start;
+}
+
+.dialog-head h2 {
+  margin-bottom: 5px;
+}
+
+.dialog-close {
+  flex: 0 0 auto;
+}
+
 .danger-note {
   display: grid;
   gap: 10px;
@@ -395,6 +501,29 @@ button.danger {
   border-radius: 18px;
   border: 1px solid rgba(143, 39, 39, 0.22);
   background: linear-gradient(180deg, rgba(255, 245, 245, 0.96), rgba(255, 235, 235, 0.72));
+}
+
+.delete-zone {
+  display: grid;
+  grid-template-columns: minmax(220px, 1.2fr) auto minmax(180px, 0.8fr) auto;
+  gap: 12px;
+  align-items: end;
+  margin-top: 16px;
+  padding: 14px;
+  border: 1px solid rgba(143, 39, 39, 0.3);
+  border-radius: 18px;
+  background: linear-gradient(180deg, rgba(255, 245, 245, 0.96), rgba(255, 235, 235, 0.72));
+}
+
+.delete-zone p {
+  margin: 4px 0 0;
+  color: var(--error);
+  font-size: 0.84rem;
+}
+
+.delete-zone .inline-check {
+  color: var(--error);
+  font-weight: 700;
 }
 
 .danger-note .inline-check {
@@ -577,7 +706,7 @@ details.group-card > summary::-webkit-details-marker {
 .table-head,
 .table-row {
   display: grid;
-  grid-template-columns: 30px minmax(180px, 1.2fr) minmax(180px, 1fr) minmax(180px, 1fr) minmax(90px, 0.5fr) minmax(90px, 0.5fr) minmax(240px, 1.1fr);
+  grid-template-columns: 30px minmax(180px, 1.2fr) minmax(180px, 1fr) minmax(180px, 1fr) minmax(90px, 0.5fr) minmax(90px, 0.5fr) minmax(240px, 1.1fr) minmax(120px, 0.7fr);
   gap: 10px;
   align-items: center;
   min-width: 0;
@@ -610,6 +739,26 @@ details.group-card > summary::-webkit-details-marker {
 
 .table-row input[name="episode_title"] {
   min-width: 0;
+}
+
+.file-state {
+  display: inline-flex;
+  justify-content: center;
+  padding: 7px 9px;
+  border-radius: 999px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.state-organized {
+  color: var(--ok);
+  background: rgba(36, 97, 58, 0.12);
+}
+
+.state-raw {
+  color: var(--accent-2);
+  background: rgba(184, 92, 45, 0.12);
 }
 
 .search-status {
@@ -740,7 +889,8 @@ details.group-card > summary::-webkit-details-marker {
   .result-panel .result-grid,
   .library-tabs,
   .page-tabs,
-  .alias-form {
+  .alias-form,
+  .workflow-panel {
     grid-template-columns: 1fr;
   }
 
@@ -749,7 +899,9 @@ details.group-card > summary::-webkit-details-marker {
   .group-summary,
   .history-item,
   .alias-item,
-  .group-footer {
+  .group-footer,
+  .folder-card-main,
+  .dialog-head {
     flex-direction: column;
     align-items: flex-start;
   }
@@ -763,6 +915,10 @@ details.group-card > summary::-webkit-details-marker {
   .table-head > span:nth-child(n + 3),
   .table-row > *:nth-child(n + 3) {
     display: none;
+  }
+
+  .file-state {
+    display: inline-flex;
   }
 }
 
@@ -803,6 +959,8 @@ details.group-card > summary::-webkit-details-marker {
   .group-controls-primary,
   .group-controls-actions,
   .group-footer,
+  .delete-zone,
+  .folder-card-meta,
   .inline-alias-form input,
   .inline-alias-form button {
     width: 100%;
@@ -841,5 +999,25 @@ details.group-card > summary::-webkit-details-marker {
   .group-footer .button-row {
     margin-left: 0;
     width: 100%;
+  }
+
+  .folder-index {
+    grid-template-columns: 1fr;
+  }
+
+  .delete-zone {
+    grid-template-columns: 1fr;
+  }
+
+  .folder-card-meta,
+  .folder-card-meta button {
+    width: 100%;
+    align-items: stretch;
+  }
+
+  .edit-dialog {
+    width: calc(100vw - 16px);
+    max-height: calc(100vh - 16px);
+    padding: 16px;
   }
 }

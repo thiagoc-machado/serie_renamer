@@ -9,6 +9,7 @@ from app.services import (
     RenameInstruction,
     apply_changes,
     delete_empty_folders,
+    delete_media_items,
     apply_online_titles_to_groups,
     build_target_filename,
     filter_instructions_by_group,
@@ -300,6 +301,29 @@ def test_scan_library_groups_by_folder_and_flags_metadata_mismatch(tmp_path: Pat
     assert result["metadata_mismatches"][0].filename == "SHOWB.S01E01.mp4"
 
 
+def test_scan_library_keeps_organized_files_and_groups_all_seasons(tmp_path: Path, monkeypatch):
+    root = tmp_path / "media"
+    season_one = root / "A Show" / "Season 01"
+    season_two = root / "A Show" / "Season 02"
+    season_one.mkdir(parents=True)
+    season_two.mkdir(parents=True)
+    first = season_one / "A Show - S01E01 - Pilot.mp4"
+    second = season_two / "A Show - S02E03.mp4"
+    first.write_text("dummy", encoding="utf-8")
+    second.write_text("dummy", encoding="utf-8")
+
+    monkeypatch.setattr("app.services.read_mp4_metadata", lambda path: {})
+
+    result = scan_library(root)
+
+    assert len(result["series_groups"]) == 1
+    group = result["series_groups"][0]
+    assert group.folder_path == "A Show"
+    assert group.seasons == [1, 2]
+    assert [entry.filename for entry in group.entries] == [first.name, second.name]
+    assert all(entry.organized for entry in group.entries)
+
+
 def test_delete_empty_folders_removes_only_empty_dirs(tmp_path: Path):
     root = tmp_path / "root"
     data_root = tmp_path / "data"
@@ -319,3 +343,23 @@ def test_delete_empty_folders_removes_only_empty_dirs(tmp_path: Path):
     assert empty.exists() is False
     assert non_empty.exists() is True
     assert any("Pasta vazia removida" in line for line in result["updated"])
+
+
+def test_delete_media_items_requires_safe_root_and_only_empty_folders(tmp_path: Path):
+    root = tmp_path / "root"
+    root.mkdir()
+    media = root / "episode.mp4"
+    empty = root / "empty"
+    non_empty = root / "non-empty"
+    media.write_text("dummy", encoding="utf-8")
+    empty.mkdir()
+    non_empty.mkdir()
+    (non_empty / "keep.txt").write_text("keep", encoding="utf-8")
+    services.ALLOWED_ROOTS = [root.resolve()]
+
+    result = delete_media_items([media, empty, non_empty])
+
+    assert not media.exists()
+    assert not empty.exists()
+    assert non_empty.exists()
+    assert any("não está vazia" in error for error in result["errors"])

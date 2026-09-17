@@ -13,6 +13,7 @@ from .services import (
     apply_changes,
     apply_metadata_changes,
     delete_empty_folders,
+    delete_media_items,
     fetch_episode_titles,
     list_history,
     load_aliases,
@@ -456,6 +457,48 @@ async def delete_empty_folders_view(
         filter_text=filter_text,
         result=result,
         message=message,
+    )
+
+
+@app.post("/delete-media", response_class=HTMLResponse)
+async def delete_media_view(
+    request: Request,
+    library: Annotated[str, Form()] = DEFAULT_LIBRARY_KEY,
+    scan_root: Annotated[str, Form()] = "",
+    destination_root: Annotated[str, Form()] = "",
+    filter_text: Annotated[str, Form()] = "",
+    selected_path: Annotated[list[str], Form()] = [],
+    confirm_delete: Annotated[str, Form()] = "",
+    delete_confirmation: Annotated[str, Form()] = "",
+) -> HTMLResponse:
+    current_library = get_library(library)
+    try:
+        source_root = safe_root(scan_root, current_library["scan_root"])
+        target_root = safe_root(destination_root, current_library["destination_root"])
+    except ValueError as exc:
+        return render_index(request, library_key=current_library["key"],
+                            scan_root=current_library["scan_root"].resolve(),
+                            destination_root=current_library["destination_root"].resolve(), message=str(exc))
+
+    if confirm_delete.strip().lower() != "yes" or delete_confirmation.strip().upper() != "APAGAR":
+        return render_index(
+            request, library_key=current_library["key"], scan_root=source_root,
+            destination_root=target_root, filter_text=filter_text,
+            message="Exclusão cancelada: marque a confirmação e digite APAGAR exatamente.",
+        )
+
+    items = [Path(item).resolve() for item in selected_path if item.strip()]
+    if not items:
+        return render_index(
+            request, library_key=current_library["key"], scan_root=source_root,
+            destination_root=target_root, filter_text=filter_text,
+            message="Nenhum arquivo ou pasta foi selecionado para apagar.",
+        )
+    result = delete_media_items(items)
+    return render_index(
+        request, library_key=current_library["key"], scan_root=source_root,
+        destination_root=target_root, filter_text=filter_text, result=result,
+        message="Exclusão concluída. Arquivos removidos não podem ser restaurados pelo histórico.",
     )
 
 
