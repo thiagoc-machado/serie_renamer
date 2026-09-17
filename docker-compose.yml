@@ -1,0 +1,21 @@
+services:
+  series-renamer:
+    build: .
+    container_name: series-renamer
+    ports:
+      - "8085:8085"
+    environment:
+      APP_DATA_DIR: /config/series-renamer
+      SONARR_URL: ""
+      SONARR_API_KEY: ""
+      JELLYFIN_URL: ""
+      JELLYFIN_API_KEY: ""
+      JELLYFIN_LIBRARY_ID: ""
+    volumes:
+      - /opt/appdata/jellyfin:/config
+      - /mnt/storage/movies:/media/movies
+      - /mnt/storage/series:/media/series
+      - /mnt/storage/cristaos:/media/cristaos
+      - /mnt/storage/Livros:/media/livros
+      - /mnt/storage/Audio-livros:/media/Audio-livros
+    restart: unless-stopped

@@ -1,0 +1,886 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Series Renamer</title>
+  <link rel="stylesheet" href="{{ url_for('static', path='/style.css') }}">
+</head>
+<body>
+  <main class="shell">
+    {% macro render_directory_node(node, title) -%}
+    <details class="tree-node {% if node.path == '' %}tree-root{% endif %}" {% if node.path == '' %}open{% endif %}>
+      <summary>
+        <div class="tree-summary">
+          <strong>{{ node.name }}</strong>
+          <span>{{ node.series_count }} {{ title }} • {{ node.file_count }} arquivos • {{ node.empty_count }} vazias</span>
+        </div>
+        {% if node.series_groups %}
+        <div class="tree-links">
+          {% for group in node.series_groups %}
+          <a href="#{{ group.anchor_id }}">Abrir</a>
+          {% endfor %}
+        </div>
+        {% endif %}
+      </summary>
+      {% if node.children %}
+      <div class="tree-children">
+        {% for child in node.children %}
+        {{ render_directory_node(child, title) }}
+        {% endfor %}
+      </div>
+      {% endif %}
+    </details>
+    {%- endmacro %}
+
+    <section class="hero">
+      <div class="hero-copy">
+        <p class="eyebrow">Renomeio seguro • mover sem sobrescrever • histórico reversível</p>
+        <h1>Organize o servidor por pasta, sem adivinhar nomes online.</h1>
+        <p class="lede">
+          A leitura vem da árvore local. Você navega pelas séries, marca o que quer alterar e o app sempre
+          move para o padrão <code>Serie/Season XX/Serie - SxxEyy.ext</code> antes de escrever metadados.
+        </p>
+      </div>
+      <div class="hero-side">
+        <div class="stat-card">
+          <strong>{{ scan_stats.series_groups }}</strong>
+          <span>pastas de série</span>
+        </div>
+        <div class="stat-card">
+          <strong>{{ scan_stats.pattern_groups }}</strong>
+          <span>grupos por padrão</span>
+        </div>
+        <div class="stat-card">
+          <strong>{{ scan_stats.metadata_mismatches }}</strong>
+          <span>metadados divergentes</span>
+        </div>
+      </div>
+    </section>
+
+    <nav class="library-tabs">
+      {% for library in libraries %}
+      <a
+        href="/?library={{ library.key }}"
+        class="tab-link {% if library.key == current_library.key %}active{% endif %}"
+      >
+        <strong>{{ library.label }}</strong>
+        <span>{{ library.description }}</span>
+      </a>
+      {% endfor %}
+    </nav>
+
+    <section class="panel">
+      <form method="get" action="/" class="stack">
+        <input type="hidden" name="library" value="{{ current_library.key }}">
+        <div class="grid config-grid">
+          <label>
+            <span>Pasta para varrer</span>
+            <input type="text" name="root" value="{{ scan_root }}" placeholder="{{ current_library.scan_root }}">
+          </label>
+          <label>
+            <span>Destino</span>
+            <input type="text" name="destination_root" value="{{ destination_root }}">
+          </label>
+          <label>
+            <span>Filtro rápido</span>
+            <input type="text" name="filter_text" value="{{ filter_text }}" placeholder="pasta, arquivo, série, metadado">
+          </label>
+        </div>
+        <div class="toolbar">
+          <button type="submit" class="primary">Atualizar varredura</button>
+          <div class="hintbox">
+            <strong>{{ current_library.label }}</strong>
+            <span>{{ current_library.scan_root }} → {{ current_library.destination_root }}</span>
+          </div>
+        </div>
+      </form>
+      {% if message %}
+      <p class="flash">{{ message }}</p>
+      {% endif %}
+    </section>
+
+    {% if result %}
+    <section class="panel result-panel">
+      <div class="result-grid">
+        <div>
+          <h2>Processados</h2>
+          <p>{{ result.updated|length }}</p>
+        </div>
+        <div>
+          <h2>Erros</h2>
+          <p>{{ result.errors|length }}</p>
+        </div>
+        <div>
+          <h2>Prévia</h2>
+          <p>{{ result.preview|length }}</p>
+        </div>
+      </div>
+
+      {% if result.preview %}
+      <div class="log-block">
+        <h3>Prévia</h3>
+        <div class="preview-list">
+          {% for item in result.preview %}
+          <article class="preview-item {% if item.conflict %}preview-error{% endif %}">
+            <div>
+              <strong>{{ item.series_name }} • S{{ "%02d"|format(item.season) }}E{{ "%02d"|format(item.episode) }}</strong>
+              <span>{{ item.source }}</span>
+            </div>
+            <div>
+              <strong>Destino</strong>
+              <span>{{ item.target }}</span>
+            </div>
+            {% if item.conflict %}
+            <div class="conflict">{{ item.conflict }}</div>
+            {% endif %}
+          </article>
+          {% endfor %}
+        </div>
+      </div>
+      {% endif %}
+
+      {% if result.updated %}
+      <div class="log-block">
+        <h3>Aplicados</h3>
+        <ul>
+          {% for line in result.updated %}
+          <li>{{ line }}</li>
+          {% endfor %}
+        </ul>
+      </div>
+      {% endif %}
+
+      {% if result.integrations %}
+      <div class="log-block">
+        <h3>Integrações</h3>
+        <ul>
+          {% for line in result.integrations %}
+          <li>{{ line }}</li>
+          {% endfor %}
+        </ul>
+      </div>
+      {% endif %}
+
+      {% if result.errors %}
+      <div class="log-block error">
+        <h3>Erros</h3>
+        <ul>
+          {% for line in result.errors %}
+          <li>{{ line }}</li>
+          {% endfor %}
+        </ul>
+      </div>
+      {% endif %}
+    </section>
+    {% endif %}
+
+    {% if undo_result %}
+    <section class="panel result-panel">
+      <h2>Desfazer</h2>
+      {% if undo_result.updated %}
+      <div class="log-block">
+        <ul>
+          {% for line in undo_result.updated %}
+          <li>{{ line }}</li>
+          {% endfor %}
+        </ul>
+      </div>
+      {% endif %}
+      {% if undo_result.errors %}
+      <div class="log-block error">
+        <ul>
+          {% for line in undo_result.errors %}
+          <li>{{ line }}</li>
+          {% endfor %}
+        </ul>
+      </div>
+      {% endif %}
+    </section>
+    {% endif %}
+
+    <nav class="page-tabs" role="tablist" aria-label="Seções principais">
+      <button id="series-tab" type="button" class="page-tab active" data-tab="series" role="tab" aria-selected="true">Séries</button>
+      <button id="patterns-tab" type="button" class="page-tab" data-tab="patterns" role="tab" aria-selected="false">Padrões</button>
+      <button id="metadata-tab" type="button" class="page-tab" data-tab="metadata" role="tab" aria-selected="false">Metadados</button>
+      <button id="empty-folders-tab" type="button" class="page-tab" data-tab="empty-folders" role="tab" aria-selected="false">Pastas vazias</button>
+      <button id="aliases-tab" type="button" class="page-tab" data-tab="aliases" role="tab" aria-selected="false">Aprendidas</button>
+      <button id="history-tab" type="button" class="page-tab" data-tab="history" role="tab" aria-selected="false">Histórico</button>
+    </nav>
+
+    <section id="series" class="tab-panel active" data-tab-panel="series" role="tabpanel" aria-labelledby="series-tab">
+      <div class="section-head">
+        <div>
+          <p class="eyebrow">Aba 1</p>
+          <h2>Séries do servidor</h2>
+          <p class="muted">Use o nome da pasta como base. Marque as linhas que quer mover/renomear.</p>
+        </div>
+        <div class="button-row">
+          <button type="submit" form="series-form" class="secondary" formaction="/preview">Prévia</button>
+          <button type="submit" form="series-form" class="primary" formaction="/apply">Renomear selecionados</button>
+        </div>
+      </div>
+
+      <div class="directory-browser">
+        <div class="section-head compact">
+          <div>
+            <p class="eyebrow">Navegador</p>
+            <h3>Diretórios</h3>
+            <p class="muted">Expanda a árvore e pule direto para a pasta que quer tratar.</p>
+          </div>
+        </div>
+        {% if directory_tree %}
+        {{ render_directory_node(directory_tree, 'séries') }}
+        {% endif %}
+      </div>
+
+      <form method="post" action="/preview" id="series-form" class="stack">
+        <input type="hidden" name="library" value="{{ current_library.key }}">
+        <input type="hidden" name="scan_root" value="{{ scan_root }}">
+        <input type="hidden" name="destination_root" value="{{ destination_root }}">
+        <input type="hidden" name="filter_text" value="{{ filter_text }}">
+
+        {% if series_groups %}
+        <div class="group-list">
+          {% for group in series_groups %}
+          {% set group_id = "series-" ~ loop.index0 %}
+          <details class="group-card" id="{{ group.anchor_id }}" open>
+            <summary class="group-summary">
+              <div>
+                <p class="group-kicker">{{ group.display_name }}</p>
+                <h3>{{ group.count }} arquivos • temporadas {{ group.seasons|join(', ') }}</h3>
+                <p class="muted">{{ group.folder_path }}</p>
+              </div>
+              <span class="summary-pill">{{ group.entries|length }} itens</span>
+            </summary>
+
+            <div class="group-controls" data-folder-path="{{ group.folder_path }}">
+              <div class="group-controls-primary">
+                <label>
+                  <span>Nome da série</span>
+                  <input type="text" value="{{ group.display_name }}" data-fill-target="{{ group_id }}" data-seasons="{{ group.seasons|join(',') }}">
+                </label>
+                <div class="search-status" data-group-status="{{ group_id }}">Série: {{ group.display_name }}</div>
+                <span class="summary-pill" data-online-count="{{ group_id }}">0 títulos online</span>
+              </div>
+              <div class="group-controls-actions">
+                <label class="inline-check">
+                  <input type="checkbox" data-toggle-group="{{ group_id }}">
+                  Selecionar tudo do grupo
+                </label>
+                <button type="button" class="secondary" data-fill-series-folder="{{ group_id }}">Usar pasta como série</button>
+                <button type="button" class="secondary" data-apply-group="{{ group_id }}">Aplicar nome ao grupo</button>
+                <button type="button" class="secondary titles-button" data-group-code="{{ group_id }}">Buscar títulos do grupo</button>
+              </div>
+            </div>
+
+            <div class="table-grid">
+              <div class="table-head">
+                <span></span>
+                <span>Arquivo</span>
+                <span>Pasta</span>
+                <span>Série</span>
+                <span>Temp.</span>
+                <span>Epis.</span>
+                <span>Título do episódio</span>
+              </div>
+              {% for entry in group.entries %}
+              <div class="table-row" data-group="{{ group_id }}">
+                <label class="inline-check">
+                  <input type="checkbox" name="selected_path" value="{{ entry.source_path }}">
+                </label>
+                <input type="hidden" name="file_path" value="{{ entry.source_path }}">
+                <label>
+                  <span class="sr-only">Arquivo</span>
+                  <input type="text" value="{{ entry.filename }}" disabled>
+                </label>
+                <label>
+                  <span class="sr-only">Pasta</span>
+                  <input type="text" value="{{ entry.relative_dir }}" disabled>
+                </label>
+                <label>
+                  <span class="sr-only">Série</span>
+                  <input
+                    type="text"
+                    name="series_name"
+                    value="{{ group.display_name }}"
+                    data-group-input="{{ group_id }}"
+                  >
+                </label>
+                <label>
+                  <span class="sr-only">Temporada</span>
+                  <input type="number" name="season" min="1" value="{{ entry.season }}">
+                </label>
+                <label>
+                  <span class="sr-only">Episódio</span>
+                  <input type="number" name="episode" min="1" value="{{ entry.episode }}">
+                </label>
+                <label>
+                  <span class="sr-only">Título do episódio</span>
+                  <input
+                    type="text"
+                    name="episode_title"
+                    value="{{ entry.suggested_episode_title }}"
+                    placeholder="Título do episódio"
+                    data-group-title-input="{{ group_id }}"
+                  >
+                </label>
+              </div>
+              {% endfor %}
+            </div>
+            <div class="group-footer button-row">
+              <span class="muted">Marque os episódios que quer alterar antes de gravar no arquivo.</span>
+              <div class="button-row">
+                <button type="submit" class="secondary" formaction="/preview">Prévia do grupo</button>
+                <button type="submit" class="primary" formaction="/apply">Renomear selecionados</button>
+              </div>
+            </div>
+          </details>
+          {% endfor %}
+        </div>
+        {% else %}
+        <p class="muted">Nenhuma série compatível foi encontrada nessa pasta.</p>
+        {% endif %}
+      </form>
+    </section>
+
+    <section id="patterns" class="tab-panel" data-tab-panel="patterns" role="tabpanel" aria-labelledby="patterns-tab">
+      <div class="section-head">
+        <div>
+          <p class="eyebrow">Aba 2</p>
+          <h2>Arquivos no padrão atual</h2>
+          <p class="muted">Separado por pasta e grupo. Ideal para lote rápido sem mexer em tudo.</p>
+        </div>
+        <div class="button-row">
+          <button type="submit" form="pattern-form" class="secondary" formaction="/preview">Prévia</button>
+          <button type="submit" form="pattern-form" class="primary" formaction="/apply">Renomear selecionados</button>
+        </div>
+      </div>
+
+      <div class="directory-browser">
+        <div class="section-head compact">
+          <div>
+            <p class="eyebrow">Navegador</p>
+            <h3>Diretórios com padrões</h3>
+            <p class="muted">Mesma árvore, mas apontando direto para os grupos já identificados pelo padrão atual.</p>
+          </div>
+        </div>
+        {% if pattern_directory_tree %}
+        {{ render_directory_node(pattern_directory_tree, 'grupos') }}
+        {% endif %}
+      </div>
+
+      <form method="post" action="/preview" id="pattern-form" class="stack">
+        <input type="hidden" name="library" value="{{ current_library.key }}">
+        <input type="hidden" name="scan_root" value="{{ scan_root }}">
+        <input type="hidden" name="destination_root" value="{{ destination_root }}">
+        <input type="hidden" name="filter_text" value="{{ filter_text }}">
+
+        {% if pattern_groups %}
+        <div class="group-list">
+          {% for group in pattern_groups %}
+          {% set group_id = "pattern-" ~ loop.index0 %}
+          <details class="group-card" id="{{ group.anchor_id }}">
+            <summary class="group-summary">
+              <div>
+                <p class="group-kicker">{{ group.series_code }}</p>
+                <h3>{{ group.count }} arquivos • temporadas {{ group.seasons|join(', ') }}</h3>
+                <p class="muted">{{ group.folder_path }}</p>
+              </div>
+              <span class="summary-pill">{{ group.guessed_name }}</span>
+            </summary>
+
+            <div class="group-controls" data-folder-path="{{ group.folder_path }}">
+              <div class="group-controls-primary">
+                <label>
+                  <span>Nome da série</span>
+                  <input type="text" value="{{ group.guessed_name }}" data-fill-target="{{ group_id }}" data-seasons="{{ group.seasons|join(',') }}">
+                </label>
+                <div class="search-status" data-group-status="{{ group_id }}">Série: {{ group.guessed_name }}</div>
+                <span class="summary-pill" data-online-count="{{ group_id }}">0 títulos online</span>
+              </div>
+              <div class="group-controls-actions">
+                <label class="inline-check">
+                  <input type="checkbox" data-toggle-group="{{ group_id }}">
+                  Selecionar tudo do grupo
+                </label>
+                <button type="button" class="secondary" data-fill-series-folder="{{ group_id }}">Usar pasta como série</button>
+                <button type="button" class="secondary" data-apply-group="{{ group_id }}">Aplicar nome ao grupo</button>
+                <button type="button" class="secondary titles-button" data-group-code="{{ group_id }}">Buscar títulos do grupo</button>
+              </div>
+            </div>
+
+            <div class="table-grid">
+              <div class="table-head">
+                <span></span>
+                <span>Arquivo</span>
+                <span>Pasta</span>
+                <span>Série</span>
+                <span>Temp.</span>
+                <span>Epis.</span>
+                <span>Título do episódio</span>
+              </div>
+              {% for entry in group.entries %}
+              <div class="table-row" data-group="{{ group_id }}">
+                <label class="inline-check">
+                  <input type="checkbox" name="selected_path" value="{{ entry.source_path }}">
+                </label>
+                <input type="hidden" name="file_path" value="{{ entry.source_path }}">
+                <label>
+                  <span class="sr-only">Arquivo</span>
+                  <input type="text" value="{{ entry.filename }}" disabled>
+                </label>
+                <label>
+                  <span class="sr-only">Pasta</span>
+                  <input type="text" value="{{ entry.relative_dir }}" disabled>
+                </label>
+                <label>
+                  <span class="sr-only">Série</span>
+                  <input
+                    type="text"
+                    name="series_name"
+                    value="{{ group.guessed_name }}"
+                    data-group-input="{{ group_id }}"
+                  >
+                </label>
+                <label>
+                  <span class="sr-only">Temporada</span>
+                  <input type="number" name="season" min="1" value="{{ entry.season }}">
+                </label>
+                <label>
+                  <span class="sr-only">Episódio</span>
+                  <input type="number" name="episode" min="1" value="{{ entry.episode }}">
+                </label>
+                <label>
+                  <span class="sr-only">Título do episódio</span>
+                  <input
+                    type="text"
+                    name="episode_title"
+                    value="{{ entry.suggested_episode_title }}"
+                    placeholder="Título do episódio"
+                    data-group-title-input="{{ group_id }}"
+                  >
+                </label>
+              </div>
+              {% endfor %}
+            </div>
+            <div class="group-footer button-row">
+              <span class="muted">Marque os episódios que quer alterar antes de gravar no arquivo.</span>
+              <div class="button-row">
+                <button type="submit" class="secondary" formaction="/preview">Prévia do grupo</button>
+                <button type="submit" class="primary" formaction="/apply">Renomear selecionados</button>
+              </div>
+            </div>
+          </details>
+          {% endfor %}
+        </div>
+        {% else %}
+        <p class="muted">Nenhum arquivo cru detectado no formato atual.</p>
+        {% endif %}
+      </form>
+    </section>
+
+    <section id="metadata" class="tab-panel" data-tab-panel="metadata" role="tabpanel" aria-labelledby="metadata-tab">
+      <div class="section-head">
+        <div>
+          <p class="eyebrow">Aba 3</p>
+          <h2>Metadados divergentes</h2>
+          <p class="muted">A série do arquivo não bate com a pasta. Marque para corrigir o campo da série.</p>
+        </div>
+        <div class="button-row">
+          <button type="submit" form="metadata-form" class="primary" formaction="/apply-metadata">Corrigir metadados selecionados</button>
+        </div>
+      </div>
+
+      <form method="post" action="/apply-metadata" id="metadata-form" class="stack">
+        <input type="hidden" name="library" value="{{ current_library.key }}">
+        <input type="hidden" name="scan_root" value="{{ scan_root }}">
+        <input type="hidden" name="destination_root" value="{{ destination_root }}">
+        <input type="hidden" name="filter_text" value="{{ filter_text }}">
+
+        {% if metadata_mismatches %}
+        <div class="group-list">
+          {% for entry in metadata_mismatches %}
+          <div class="group-card mismatch-card" id="{{ entry.anchor_id }}">
+            <div class="table-grid mismatch-grid">
+              <div class="table-head">
+                <span></span>
+                <span>Arquivo</span>
+                <span>Pasta</span>
+                <span>Metadado</span>
+                <span>Temp.</span>
+                <span>Epis.</span>
+              </div>
+              <div class="table-row">
+                <label class="inline-check">
+                  <input type="checkbox" name="selected_path" value="{{ entry.source_path }}">
+                </label>
+                <input type="hidden" name="file_path" value="{{ entry.source_path }}">
+                <input type="hidden" name="series_name" value="{{ entry.folder_series_name }}">
+                <input type="hidden" name="season" value="{{ entry.season }}">
+                <input type="hidden" name="episode" value="{{ entry.episode }}">
+                <input type="hidden" name="episode_title" value="">
+                <label><input type="text" value="{{ entry.filename }}" disabled></label>
+                <label><input type="text" value="{{ entry.folder_series_name }}" disabled></label>
+                <label><input type="text" value="{{ entry.metadata_series_name }}" disabled></label>
+                <label><input type="number" value="{{ entry.season }}" disabled></label>
+                <label><input type="number" value="{{ entry.episode }}" disabled></label>
+              </div>
+            </div>
+          </div>
+          {% endfor %}
+        </div>
+        {% else %}
+        <p class="muted">Nenhuma divergência de metadado foi detectada.</p>
+        {% endif %}
+      </form>
+    </section>
+
+    <section id="empty-folders" class="tab-panel" data-tab-panel="empty-folders" role="tabpanel" aria-labelledby="empty-folders-tab">
+      <div class="section-head">
+        <div>
+          <p class="eyebrow">Aba 4</p>
+          <h2>Pastas vazias</h2>
+          <p class="muted">Somente pastas sem arquivos e sem conteúdo interno. A remoção continua sem tocar em arquivos.</p>
+        </div>
+        <div class="button-row">
+          <button type="submit" form="empty-form" class="primary" formaction="/delete-empty-folders">Apagar selecionadas</button>
+        </div>
+      </div>
+
+      <form method="post" action="/delete-empty-folders" id="empty-form" class="stack">
+        <input type="hidden" name="library" value="{{ current_library.key }}">
+        <input type="hidden" name="scan_root" value="{{ scan_root }}">
+        <input type="hidden" name="destination_root" value="{{ destination_root }}">
+        <input type="hidden" name="filter_text" value="{{ filter_text }}">
+        <p class="search-status">Esta ação fica travada no diretório de séries e não aceita outro caminho.</p>
+        <div class="danger-note">
+          <label class="inline-check">
+            <input type="checkbox" id="confirm-empty-delete" name="confirm_empty_delete" value="yes">
+            Confirmo que revisei as pastas selecionadas e quero apagá-las vazias.
+          </label>
+          <p class="muted">A ação só executa se a pasta estiver vazia no momento da checagem e ainda assim pede confirmação dupla.</p>
+        </div>
+
+        {% if empty_folders %}
+        <div class="folder-list">
+          {% for entry in empty_folders %}
+          <article class="folder-item" id="{{ entry.anchor_id }}">
+            <label class="inline-check">
+              <input type="checkbox" name="folder_path" value="{{ entry.relative_path }}">
+              <strong>{{ entry.relative_path }}</strong>
+            </label>
+            <span class="muted">nome: {{ entry.folder_name }} • nível {{ entry.depth }}</span>
+          </article>
+          {% endfor %}
+        </div>
+        {% else %}
+        <p class="muted">Nenhuma pasta vazia encontrada.</p>
+        {% endif %}
+      </form>
+    </section>
+
+    <section id="aliases" class="tab-panel" data-tab-panel="aliases" role="tabpanel" aria-labelledby="aliases-tab">
+      <div class="section-head">
+        <div>
+          <p class="eyebrow">Aba 5</p>
+          <h2>Series aprendidas</h2>
+          <p class="muted">Edite ou remova os nomes guardados localmente.</p>
+        </div>
+      </div>
+
+      <form method="post" action="/aliases/save" class="alias-form">
+        <input type="hidden" name="library" value="{{ current_library.key }}">
+        <input type="hidden" name="scan_root" value="{{ scan_root }}">
+        <input type="hidden" name="destination_root" value="{{ destination_root }}">
+        <input type="hidden" name="filter_text" value="{{ filter_text }}">
+        <label>
+          <span>Chave</span>
+          <input type="text" name="alias_key" placeholder="Ex: ERKA">
+        </label>
+        <label>
+          <span>Nome da série</span>
+          <input type="text" name="alias_value" placeholder="Ex: Eureka">
+        </label>
+        <button type="submit" class="primary">Salvar</button>
+      </form>
+
+      {% if aliases %}
+      <form method="post" action="/aliases/delete" id="aliases-delete-form" class="stack">
+        <input type="hidden" name="library" value="{{ current_library.key }}">
+        <input type="hidden" name="scan_root" value="{{ scan_root }}">
+        <input type="hidden" name="destination_root" value="{{ destination_root }}">
+        <input type="hidden" name="filter_text" value="{{ filter_text }}">
+        <div class="toolbar compact-toolbar">
+          <label class="inline-check">
+            <input type="checkbox" data-alias-select-all>
+            Selecionar tudo
+          </label>
+          <button type="submit" class="secondary danger">Apagar selecionados</button>
+        </div>
+      </form>
+      <div class="alias-list">
+        {% for code, name in aliases.items() %}
+        <article class="alias-item">
+          <div>
+            <label class="inline-check alias-check">
+              <input
+                type="checkbox"
+                name="alias_key"
+                value="{{ code }}"
+                form="aliases-delete-form"
+                data-alias-delete-checkbox
+              >
+              <strong>{{ code }}</strong>
+            </label>
+            <span>{{ name }}</span>
+          </div>
+          <div class="button-row">
+            <form method="post" action="/aliases/save" class="inline-alias-form">
+              <input type="hidden" name="library" value="{{ current_library.key }}">
+              <input type="hidden" name="scan_root" value="{{ scan_root }}">
+              <input type="hidden" name="destination_root" value="{{ destination_root }}">
+              <input type="hidden" name="filter_text" value="{{ filter_text }}">
+              <input type="hidden" name="alias_key" value="{{ code }}">
+              <input type="text" name="alias_value" value="{{ name }}">
+              <button type="submit" class="secondary">Salvar</button>
+            </form>
+            <form method="post" action="/aliases/delete">
+              <input type="hidden" name="library" value="{{ current_library.key }}">
+              <input type="hidden" name="scan_root" value="{{ scan_root }}">
+              <input type="hidden" name="destination_root" value="{{ destination_root }}">
+              <input type="hidden" name="filter_text" value="{{ filter_text }}">
+              <input type="hidden" name="alias_key" value="{{ code }}">
+              <button type="submit" class="secondary">Apagar</button>
+            </form>
+          </div>
+        </article>
+        {% endfor %}
+      </div>
+      {% else %}
+      <p class="muted">Nenhuma série aprendida salva ainda.</p>
+      {% endif %}
+    </section>
+
+    <section id="history" class="tab-panel" data-tab-panel="history" role="tabpanel" aria-labelledby="history-tab">
+      <div class="section-head">
+        <div>
+          <p class="eyebrow">Aba 6</p>
+          <h2>Histórico recente</h2>
+          <p class="muted">Cada lote guarda nomes, diretórios e metadados para desfazer com segurança.</p>
+        </div>
+      </div>
+
+      <div class="history-list">
+        {% if history %}
+        {% for batch in history %}
+        <article class="history-item">
+          <div class="history-meta">
+            <strong>{{ batch.batch_id }}</strong>
+            <span>{{ batch.operation_count }} operações</span>
+            <small>{{ batch.created_at }}</small>
+          </div>
+          <form method="post" action="/undo" class="history-action">
+            <input type="hidden" name="library" value="{{ current_library.key }}">
+            <input type="hidden" name="scan_root" value="{{ scan_root }}">
+            <input type="hidden" name="destination_root" value="{{ destination_root }}">
+            <input type="hidden" name="filter_text" value="{{ filter_text }}">
+            <input type="hidden" name="batch_id" value="{{ batch.batch_id }}">
+            <button type="submit" class="secondary">Desfazer</button>
+          </form>
+        </article>
+        {% endfor %}
+        {% else %}
+        <p class="muted">Nenhum lote salvo ainda.</p>
+        {% endif %}
+      </div>
+    </section>
+  </main>
+
+  <script>
+    const tabButtons = document.querySelectorAll('[data-tab]');
+    const tabPanels = document.querySelectorAll('[data-tab-panel]');
+
+    const setActiveTab = (tabName, updateHash = true) => {
+      tabButtons.forEach((button) => {
+        const active = button.dataset.tab === tabName;
+        button.classList.toggle('active', active);
+        button.setAttribute('aria-selected', active ? 'true' : 'false');
+      });
+
+      tabPanels.forEach((panel) => {
+        panel.classList.toggle('active', panel.dataset.tabPanel === tabName);
+      });
+
+      if (updateHash) {
+        const url = new URL(window.location.href);
+        url.searchParams.set('tab', tabName);
+        window.history.replaceState({}, '', url);
+      }
+
+      window.scrollTo(0, 0);
+    };
+
+    tabButtons.forEach((button) => {
+      button.addEventListener('click', () => setActiveTab(button.dataset.tab));
+    });
+
+    const initialTab = new URLSearchParams(window.location.search).get('tab') || 'series';
+    if (document.querySelector(`[data-tab-panel="${initialTab}"]`)) {
+      setActiveTab(initialTab, false);
+    }
+
+    document.querySelectorAll('[data-apply-group]').forEach((button) => {
+      button.addEventListener('click', () => {
+        const groupId = button.dataset.applyGroup;
+        const source = document.querySelector(`[data-fill-target="${groupId}"]`);
+        document.querySelectorAll(`[data-group-input="${groupId}"]`).forEach((input) => {
+          input.value = source?.value || input.value;
+        });
+      });
+    });
+
+    document.querySelectorAll('[data-fill-series-folder]').forEach((button) => {
+      button.addEventListener('click', () => {
+        const groupId = button.dataset.fillSeriesFolder;
+        const controls = button.closest('.group-controls');
+        const source = document.querySelector(`[data-fill-target="${groupId}"]`);
+        const folderPath = controls?.dataset.folderPath || '';
+        const folderName = folderPath.split('/').filter(Boolean).pop()?.trim() || source?.value.trim() || '';
+
+        if (!source || !folderName) {
+          alert('Não foi possível identificar o nome da pasta para este grupo.');
+          return;
+        }
+
+        source.value = folderName;
+        document.querySelectorAll(`[data-group-input="${groupId}"]`).forEach((input) => {
+          input.value = folderName;
+        });
+
+        const status = document.querySelector(`[data-group-status="${groupId}"]`);
+        if (status) {
+          status.textContent = `Série preenchida da pasta: ${folderName}`;
+        }
+      });
+    });
+
+    const fillTitlesForGroup = async (groupId) => {
+      const source = document.querySelector(`[data-fill-target="${groupId}"]`);
+      if (!source) {
+        alert('Não foi possível identificar a série deste grupo.');
+        return;
+      }
+
+      const seasons = (source.dataset.seasons || '')
+        .split(',')
+        .map((value) => value.trim())
+        .filter(Boolean);
+
+      if (!seasons.length) {
+        alert('Não foi possível identificar as temporadas deste grupo.');
+        return;
+      }
+
+      const formData = new FormData();
+      formData.append('series_name', source.value.trim());
+      formData.append('language', 'pt-BR');
+      seasons.forEach((season) => formData.append('seasons', season));
+
+      const response = await fetch('/group-titles', {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (!response.ok) {
+        alert('Falha ao buscar títulos online para este grupo.');
+        return;
+      }
+
+      const payload = await response.json();
+      const status = document.querySelector(`[data-group-status="${groupId}"]`);
+      if (status) {
+        status.textContent = `Série pesquisada: ${payload.series_name || source.value.trim()}`;
+      }
+      const titleMap = new Map((payload.titles || []).map((item) => [`${item.season}:${item.episode}`, item.title]));
+      let applied = 0;
+
+      document.querySelectorAll(`[data-group="${groupId}"]`).forEach((row) => {
+        const seasonInput = row.querySelector('input[name="season"]');
+        const episodeInput = row.querySelector('input[name="episode"]');
+        const titleInput = row.querySelector('[data-group-title-input]');
+        if (!seasonInput || !episodeInput || !titleInput) {
+          return;
+        }
+
+        if (titleInput.value.trim()) {
+          return;
+        }
+
+        const key = `${seasonInput.value}:${episodeInput.value}`;
+        const title = titleMap.get(key);
+        if (title) {
+          titleInput.value = title;
+          applied += 1;
+        }
+      });
+
+      const countBadge = document.querySelector(`[data-online-count="${groupId}"]`);
+      if (countBadge) {
+        countBadge.textContent = `${applied} título${applied === 1 ? '' : 's'} online`;
+      }
+
+      if (status) {
+        const label = applied > 0 ? `${applied} título${applied === 1 ? '' : 's'} preenchido${applied === 1 ? '' : 's'}` : 'nenhum título preenchido';
+        status.textContent = `Série pesquisada: ${payload.series_name || source.value.trim()} • ${label}`;
+      }
+
+      alert(
+        applied > 0
+          ? `Títulos preenchidos para ${applied} episódio(s) de ${source.value.trim()}.`
+          : `Nenhum título encontrado para ${source.value.trim()}.`
+      );
+    };
+
+    document.querySelectorAll('.titles-button').forEach((button) => {
+      button.addEventListener('click', () => {
+        fillTitlesForGroup(button.dataset.groupCode).catch(() => {
+          alert('Falha inesperada ao buscar títulos online.');
+        });
+      });
+    });
+
+    document.querySelectorAll('[data-toggle-group]').forEach((checkbox) => {
+      checkbox.addEventListener('change', () => {
+        const groupId = checkbox.dataset.toggleGroup;
+        document.querySelectorAll(`[data-group="${groupId}"] input[type="checkbox"][name="selected_path"]`).forEach((item) => {
+          item.checked = checkbox.checked;
+        });
+      });
+    });
+
+    const aliasSelectAll = document.querySelector('[data-alias-select-all]');
+    if (aliasSelectAll) {
+      aliasSelectAll.addEventListener('change', () => {
+        document.querySelectorAll('input[data-alias-delete-checkbox]').forEach((item) => {
+          item.checked = aliasSelectAll.checked;
+        });
+      });
+    }
+
+    const emptyForm = document.getElementById('empty-form');
+    const confirmEmptyDelete = document.getElementById('confirm-empty-delete');
+    emptyForm?.addEventListener('submit', (event) => {
+      if (!confirmEmptyDelete?.checked) {
+        alert('Confirme a exclusão de pastas vazias antes de prosseguir.');
+        event.preventDefault();
+        return;
+      }
+      const ok = confirm('Atenção: isso apagará apenas as pastas vazias selecionadas. Continuar?');
+      if (!ok) {
+        event.preventDefault();
+      }
+    });
+  </script>
+</body>
+</html>
