@@ -933,6 +933,7 @@
       }
       const titleMap = new Map((payload.titles || []).map((item) => [`${item.season}:${item.episode}`, item.title]));
       let applied = 0;
+      let found = 0;
 
       document.querySelectorAll(`[data-group="${groupId}"]`).forEach((row) => {
         const seasonInput = row.querySelector('input[name="season"]');
@@ -942,31 +943,32 @@
           return;
         }
 
-        if (titleInput.value.trim()) {
-          return;
-        }
-
         const key = `${seasonInput.value}:${episodeInput.value}`;
         const title = titleMap.get(key);
         if (title) {
-          titleInput.value = title;
-          applied += 1;
+          found += 1;
+          if (titleInput.value.trim() !== title) {
+            titleInput.value = title;
+            applied += 1;
+          }
         }
       });
 
       const countBadge = document.querySelector(`[data-online-count="${groupId}"]`);
       if (countBadge) {
-        countBadge.textContent = `${applied} título${applied === 1 ? '' : 's'} online`;
+        countBadge.textContent = `${found} título${found === 1 ? '' : 's'} encontrado${found === 1 ? '' : 's'}`;
       }
 
       if (status) {
-        const label = applied > 0 ? `${applied} título${applied === 1 ? '' : 's'} preenchido${applied === 1 ? '' : 's'}` : 'nenhum título preenchido';
+        const label = found > 0
+          ? `${applied} título${applied === 1 ? '' : 's'} atualizado${applied === 1 ? '' : 's'}`
+          : 'nenhum título encontrado';
         status.textContent = `Série pesquisada: ${payload.series_name || source.value.trim()} • ${label}`;
       }
 
       alert(
-        applied > 0
-          ? `Títulos preenchidos para ${applied} episódio(s) de ${source.value.trim()}.`
+        found > 0
+          ? `${found} título(s) encontrado(s); ${applied} campo(s) atualizado(s) para ${source.value.trim()}.`
           : `Nenhum título encontrado para ${source.value.trim()}.`
       );
     };
