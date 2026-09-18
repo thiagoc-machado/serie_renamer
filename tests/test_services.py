@@ -349,6 +349,18 @@ def test_scan_library_filter_matches_episode_metadata_title(tmp_path: Path, monk
     assert [entry.filename for entry in result["series_groups"][0].entries] == [pilot.name]
 
 
+def test_scan_library_supports_common_homeserver_video_extensions(tmp_path: Path, monkeypatch):
+    root = tmp_path / "media" / "A Show" / "Season 01"
+    root.mkdir(parents=True)
+    episode = root / "A Show - S01E01.mkv"
+    episode.write_text("dummy", encoding="utf-8")
+    monkeypatch.setattr("app.services.read_mp4_metadata", lambda path: {})
+
+    result = scan_library(root.parents[1])
+
+    assert result["series_groups"][0].entries[0].filename == episode.name
+
+
 def test_delete_empty_folders_removes_only_empty_dirs(tmp_path: Path):
     root = tmp_path / "root"
     data_root = tmp_path / "data"

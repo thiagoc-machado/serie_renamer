@@ -23,7 +23,10 @@ except ModuleNotFoundError:  # pragma: no cover
     class MP4StreamInfoError(Exception):
         pass
 
-VIDEO_EXTENSIONS = {".mp4", ".m4v", ".mov"}
+# Formats commonly used by Sonarr/Jellyfin libraries. Metadata writing remains
+# MP4-only, but every supported video can still be scanned and renamed.
+VIDEO_EXTENSIONS = {".mp4", ".m4v", ".mov", ".mkv", ".avi", ".webm", ".m2ts", ".ts"}
+MP4_EXTENSIONS = {".mp4", ".m4v", ".mov"}
 RAW_PATTERNS = [
     re.compile(
         r"^(?P<code>[A-Z0-9]+?)[\s._-]*T(?P<season>\d{2})[\s._-]*EP(?P<episode>\d{2,3})$",
@@ -1060,7 +1063,7 @@ def build_target_filename(series_name: str, season: int, episode: int, episode_t
 def read_mp4_metadata(file_path: Path) -> dict[str, list[Any]] | None:
     if MP4 is None:
         return None
-    if file_path.suffix.lower() not in VIDEO_EXTENSIONS:
+    if file_path.suffix.lower() not in MP4_EXTENSIONS:
         return None
     try:
         media = MP4(file_path)
@@ -1072,7 +1075,7 @@ def read_mp4_metadata(file_path: Path) -> dict[str, list[Any]] | None:
 def write_mp4_metadata(file_path: Path, series_name: str, season: int, episode: int, episode_title: str) -> None:
     if MP4 is None:
         return
-    if file_path.suffix.lower() not in VIDEO_EXTENSIONS:
+    if file_path.suffix.lower() not in MP4_EXTENSIONS:
         return
 
     try:
@@ -1094,7 +1097,7 @@ def write_mp4_metadata(file_path: Path, series_name: str, season: int, episode: 
 def restore_mp4_metadata(file_path: Path, metadata: dict[str, list[Any]] | None) -> None:
     if MP4 is None:
         return
-    if file_path.suffix.lower() not in VIDEO_EXTENSIONS:
+    if file_path.suffix.lower() not in MP4_EXTENSIONS:
         return
     try:
         media = MP4(file_path)
@@ -1111,7 +1114,7 @@ def restore_mp4_metadata(file_path: Path, metadata: dict[str, list[Any]] | None)
 def write_mp4_series_name(file_path: Path, series_name: str) -> None:
     if MP4 is None:
         return
-    if file_path.suffix.lower() not in VIDEO_EXTENSIONS:
+    if file_path.suffix.lower() not in MP4_EXTENSIONS:
         return
 
     try:

@@ -229,6 +229,11 @@ async def media_file(path: str) -> FileResponse:
         ".mp4": "video/mp4",
         ".m4v": "video/mp4",
         ".mov": "video/quicktime",
+        ".mkv": "video/x-matroska",
+        ".webm": "video/webm",
+        ".avi": "video/x-msvideo",
+        ".m2ts": "video/mp2t",
+        ".ts": "video/mp2t",
     }
     return FileResponse(candidate, media_type=media_types.get(candidate.suffix.lower(), "video/mp4"), filename=candidate.name)
 
