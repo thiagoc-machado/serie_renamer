@@ -1012,6 +1012,21 @@
         event.preventDefault();
       }
     });
+
+    document.querySelectorAll('form').forEach((form) => {
+      form.addEventListener('submit', (event) => {
+        if (event.defaultPrevented) return;
+        const submitter = event.submitter;
+        const actionButtons = form.querySelectorAll('button[type="submit"]');
+        actionButtons.forEach((button) => {
+          button.disabled = true;
+          button.classList.add('is-processing');
+          if (button === submitter) {
+            button.innerHTML = '<span class="spinner" aria-hidden="true"></span> Processando...';
+          }
+        });
+      });
+    });
   </script>
 </body>
 </html>
