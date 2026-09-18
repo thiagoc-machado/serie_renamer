@@ -312,7 +312,10 @@ def test_scan_library_keeps_organized_files_and_groups_all_seasons(tmp_path: Pat
     first.write_text("dummy", encoding="utf-8")
     second.write_text("dummy", encoding="utf-8")
 
-    monkeypatch.setattr("app.services.read_mp4_metadata", lambda path: {})
+    monkeypatch.setattr(
+        "app.services.read_mp4_metadata",
+        lambda path: {"\xa9nam": ["Metadata Pilot"]} if path == first else {},
+    )
 
     result = scan_library(root)
 
@@ -322,6 +325,8 @@ def test_scan_library_keeps_organized_files_and_groups_all_seasons(tmp_path: Pat
     assert group.seasons == [1, 2]
     assert [entry.filename for entry in group.entries] == [first.name, second.name]
     assert all(entry.organized for entry in group.entries)
+    assert group.entries[0].suggested_episode_title == "Metadata Pilot"
+    assert group.entries[1].suggested_episode_title == ""
 
 
 def test_delete_empty_folders_removes_only_empty_dirs(tmp_path: Path):

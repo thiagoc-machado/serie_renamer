@@ -42,7 +42,7 @@ ORGANIZED_PATTERNS = [
     re.compile(r".+\s-\sS\d{2}E\d{2,3}(\s-\s.+)?$", re.IGNORECASE),
 ]
 ORGANIZED_EPISODE_PATTERN = re.compile(
-    r"^(?P<name>.+?)\s+-\s+S(?P<season>\d{1,2})E(?P<episode>\d{1,3})(?:\s+-\s+.+)?$",
+    r"^(?P<name>.+?)\s+-\s+S(?P<season>\d{1,2})E(?P<episode>\d{1,3})(?:\s+-\s+(?P<title>.+))?$",
     re.IGNORECASE,
 )
 SAFE_CHARS = re.compile(r"[^A-Za-z0-9À-ÿ _.\-]+")
@@ -149,6 +149,7 @@ class FolderFileEntry:
     series_folder: str
     season: int
     episode: int
+    suggested_episode_title: str
     organized: bool
     pattern_name: str
     metadata_series_name: str
@@ -336,6 +337,26 @@ def extract_metadata_series_name(file_path: Path) -> str:
             clean = sanitize_name(str(value[0]))
             if clean:
                 return clean
+    return ""
+
+
+def extract_metadata_episode_title(file_path: Path, series_name: str, season: int, episode: int) -> str:
+    metadata = read_mp4_metadata(file_path)
+    if not metadata:
+        return ""
+    for key in ("\xa9nam", "desc"):
+        value = metadata.get(key)
+        if not value:
+            continue
+        title = sanitize_name(str(value[0]))
+        if not title:
+            continue
+        prefix = f"{sanitize_name(series_name)} - S{season:02d}E{episode:02d}"
+        if title.casefold() == prefix.casefold():
+            return ""
+        if title.casefold().startswith(f"{prefix} - ".casefold()):
+            return title[len(prefix) + 3 :].strip()
+        return title
     return ""
 
 
@@ -867,6 +888,7 @@ def scan_library(root: Path, *, filter_text: str = "") -> dict[str, Any]:
         folder_path, series_folder = extract_series_folder(path, root)
         display_name = _folder_display_name(series_folder, aliases)
         metadata_series_name = extract_metadata_series_name(path)
+        metadata_episode_title = extract_metadata_episode_title(path, display_name, season, episode)
         relative_dir = str(path.parent.relative_to(root))
         blob = _series_match_blob(
             series_folder,
@@ -901,6 +923,10 @@ def scan_library(root: Path, *, filter_text: str = "") -> dict[str, Any]:
                 series_folder=series_folder,
                 season=season,
                 episode=episode,
+                suggested_episode_title=(
+                    metadata_episode_title
+                    or sanitize_name(match.groupdict().get("title") or "")
+                ),
                 organized=organized,
                 pattern_name=pattern_name,
                 metadata_series_name=metadata_series_name,
