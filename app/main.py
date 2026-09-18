@@ -486,8 +486,8 @@ async def delete_media_view(
     destination_root: Annotated[str, Form()] = "",
     filter_text: Annotated[str, Form()] = "",
     selected_path: Annotated[list[str], Form()] = [],
-    confirm_delete: Annotated[str, Form()] = "",
-    delete_confirmation: Annotated[str, Form()] = "",
+    confirm_delete: Annotated[list[str], Form()] = [],
+    delete_confirmation: Annotated[list[str], Form()] = [],
 ) -> HTMLResponse:
     current_library = get_library(library)
     try:
@@ -498,7 +498,9 @@ async def delete_media_view(
                             scan_root=current_library["scan_root"].resolve(),
                             destination_root=current_library["destination_root"].resolve(), message=str(exc))
 
-    if confirm_delete.strip().lower() != "yes" or delete_confirmation.strip().upper() != "APAGAR":
+    confirmed = any(value.strip().lower() == "yes" for value in confirm_delete)
+    typed_confirmation = any(value.strip().upper() == "APAGAR" for value in delete_confirmation)
+    if not confirmed or not typed_confirmation:
         return render_index(
             request, library_key=current_library["key"], scan_root=source_root,
             destination_root=target_root, filter_text=filter_text,
