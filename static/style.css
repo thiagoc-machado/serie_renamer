@@ -1092,6 +1092,32 @@ details.group-card > summary::-webkit-details-marker {
   }
 }
 
+/* The edit modal keeps its full row visible; on narrow screens it scrolls horizontally. */
+.edit-dialog .table-grid {
+  overflow-x: auto;
+  padding-bottom: 8px;
+}
+
+.edit-dialog .table-head,
+.edit-dialog .table-row {
+  grid-template-columns: 30px minmax(220px, 1.2fr) 120px minmax(180px, 1fr) minmax(180px, 1fr) minmax(90px, 0.5fr) minmax(90px, 0.5fr) minmax(240px, 1.1fr) minmax(120px, 0.7fr);
+  min-width: 1240px;
+}
+
+.edit-dialog .table-head > span,
+.edit-dialog .table-row > label,
+.edit-dialog .table-row > .play-button,
+.edit-dialog .table-row > .file-state {
+  display: grid !important;
+}
+
+.edit-dialog .current-name {
+  color: var(--ink);
+  background: #edf1f4;
+  border-color: rgba(23, 33, 43, 0.16);
+  cursor: text;
+}
+
 /* Refinements: clearer density, hierarchy and interaction states. */
 .shell {
   max-width: 1480px;

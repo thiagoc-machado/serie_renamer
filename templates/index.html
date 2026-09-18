@@ -305,8 +305,8 @@
                 </label>
                 <input type="hidden" name="file_path" value="{{ entry.source_path }}">
                 <label>
-                  <span class="sr-only">Arquivo</span>
-                  <input type="text" value="{{ entry.filename }}" disabled>
+                  <span class="sr-only">Nome atual do arquivo</span>
+                  <input class="current-name" type="text" value="{{ entry.filename }}" readonly title="Nome atual do arquivo">
                 </label>
                 <button type="button" class="play-button" data-play-path="{{ entry.source_path }}" data-play-name="{{ entry.filename }}">▶ Reproduzir</button>
                 <label>
@@ -476,8 +476,8 @@
                 </label>
                 <input type="hidden" name="file_path" value="{{ entry.source_path }}">
                 <label>
-                  <span class="sr-only">Arquivo</span>
-                  <input type="text" value="{{ entry.filename }}" disabled>
+                  <span class="sr-only">Nome atual do arquivo</span>
+                  <input class="current-name" type="text" value="{{ entry.filename }}" readonly title="Nome atual do arquivo">
                 </label>
                 <button type="button" class="play-button" data-play-path="{{ entry.source_path }}" data-play-name="{{ entry.filename }}">▶ Reproduzir</button>
                 <label>
