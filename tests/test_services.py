@@ -329,6 +329,26 @@ def test_scan_library_keeps_organized_files_and_groups_all_seasons(tmp_path: Pat
     assert group.entries[1].suggested_episode_title == ""
 
 
+def test_scan_library_filter_matches_episode_metadata_title(tmp_path: Path, monkeypatch):
+    root = tmp_path / "media" / "A Show"
+    root.mkdir(parents=True)
+    pilot = root / "A Show - S01E01.mp4"
+    finale = root / "A Show - S01E02.mp4"
+    pilot.write_text("dummy", encoding="utf-8")
+    finale.write_text("dummy", encoding="utf-8")
+
+    def metadata(path: Path):
+        title = "Pilot" if path == pilot else "Finale"
+        return {"tvsh": ["A Show"], "\xa9nam": [title]}
+
+    monkeypatch.setattr("app.services.read_mp4_metadata", metadata)
+
+    result = scan_library(root.parent, filter_text="Pilot")
+
+    assert len(result["series_groups"]) == 1
+    assert [entry.filename for entry in result["series_groups"][0].entries] == [pilot.name]
+
+
 def test_delete_empty_folders_removes_only_empty_dirs(tmp_path: Path):
     root = tmp_path / "root"
     data_root = tmp_path / "data"

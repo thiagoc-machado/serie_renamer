@@ -894,6 +894,7 @@ def scan_library(root: Path, *, filter_text: str = "") -> dict[str, Any]:
             series_folder,
             display_name,
             metadata_series_name,
+            metadata_episode_title,
             relative_dir,
             path.name,
         )
