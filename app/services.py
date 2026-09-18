@@ -621,7 +621,18 @@ def _tvmaze_episode_titles(series_name: str, seasons: set[int]) -> dict[tuple[in
         with urlopen(Request(search_url, headers={"User-Agent": "series-renamer/1.0"}), timeout=8) as response:
             search_results = json.loads(response.read().decode("utf-8"))
     except Exception:
-        return {}
+        search_results = []
+
+    # TVMaze's single-search endpoint is a useful fallback when the ranked
+    # search endpoint is unavailable or rate-limited.
+    if not isinstance(search_results, list) or not search_results:
+        try:
+            single_url = f"https://api.tvmaze.com/singlesearch/shows?q={quote(clean_name)}"
+            with urlopen(Request(single_url, headers={"User-Agent": "series-renamer/1.0"}), timeout=8) as response:
+                show = json.loads(response.read().decode("utf-8"))
+            search_results = [{"score": 1, "show": show}] if isinstance(show, dict) else []
+        except Exception:
+            return {}
 
     if not isinstance(search_results, list) or not search_results:
         return {}
@@ -1507,9 +1518,10 @@ def fetch_episode_titles(series_name: str, seasons: set[int], language: str | No
                 if mapped:
                     return mapped
 
-    fallback = _tvmaze_episode_titles(series_name, seasons)
-    if fallback:
-        return fallback
+    for candidate_name in _query_variants(series_name):
+        fallback = _tvmaze_episode_titles(candidate_name, seasons)
+        if fallback:
+            return fallback
 
     return {}
 
