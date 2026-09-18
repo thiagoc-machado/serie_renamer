@@ -222,8 +222,8 @@
           <p class="muted">Cada cartão representa uma série inteira. Arquivos já organizados continuam visíveis para corrigir nome, temporada ou episódio.</p>
         </div>
         <div class="button-row">
-          <button type="submit" form="series-form" class="secondary" formaction="/preview">Prévia</button>
-          <button type="submit" form="series-form" class="primary" formaction="/apply">Renomear selecionados</button>
+          <button type="submit" form="series-form" class="secondary" formaction="/preview" formnovalidate>Prévia</button>
+          <button type="submit" form="series-form" class="primary" formaction="/apply" formnovalidate>Renomear selecionados</button>
         </div>
       </div>
 
@@ -364,8 +364,8 @@
             <div class="group-footer button-row">
               <span class="muted">{{ group.count }} arquivos nesta pasta • selecione só os que deseja alterar.</span>
               <div class="button-row">
-                <button type="submit" class="secondary" formaction="/preview">Prévia do grupo</button>
-                <button type="submit" class="primary" formaction="/apply">Renomear selecionados</button>
+                <button type="submit" class="secondary" formaction="/preview" formnovalidate>Prévia do grupo</button>
+                <button type="submit" class="primary" formaction="/apply" formnovalidate>Renomear selecionados</button>
               </div>
             </div>
             </dialog>

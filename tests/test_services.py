@@ -71,6 +71,29 @@ def test_apply_changes_skips_existing_destination(tmp_path: Path):
     assert existing_target.exists()
 
 
+def test_apply_changes_moves_avi_without_mp4_metadata_processing(tmp_path: Path):
+    source = tmp_path / "raw.avi"
+    source.write_text("dummy", encoding="utf-8")
+    instructions = [
+        RenameInstruction(
+            source_path=source,
+            source_root=tmp_path,
+            destination_root=tmp_path,
+            series_code="SHOW",
+            series_name="Show",
+            season=1,
+            episode=1,
+            episode_title="Pilot",
+        )
+    ]
+
+    result = apply_changes(instructions)
+
+    assert result["errors"] == []
+    assert not source.exists()
+    assert (tmp_path / "Show" / "Season 01" / "Show - S01E01 - Pilot.avi").exists()
+
+
 def test_parse_form_instructions_filters_outside_source_root(tmp_path: Path):
     source_root = tmp_path / "root"
     source_root.mkdir()
