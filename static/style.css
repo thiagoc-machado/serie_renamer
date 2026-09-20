@@ -508,7 +508,8 @@ button:disabled {
 .ready-badge {
   display: inline-flex;
   align-items: center;
-  padding: 5px 9px;
+  gap: 6px;
+  padding: 6px 10px;
   border-radius: 999px;
   font-size: 0.75rem;
   font-weight: 800;
@@ -516,15 +517,25 @@ button:disabled {
 }
 
 .attention-badge {
-  color: #8a4b16;
-  background: #fff0d8;
-  border: 1px solid #f0c98b;
+  color: #8f2027;
+  background: #ffe2e1;
+  border: 1px solid #ed9b9b;
+  box-shadow: 0 3px 10px rgba(178, 56, 56, 0.12);
 }
 
 .ready-badge {
   color: var(--ok);
   background: #e5f4ec;
   border: 1px solid #b8dec9;
+}
+
+.attention-badge::before,
+.ready-badge::before {
+  width: 7px;
+  height: 7px;
+  content: "";
+  border-radius: 50%;
+  background: currentColor;
 }
 
 .edit-dialog {
