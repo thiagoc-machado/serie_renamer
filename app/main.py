@@ -124,6 +124,7 @@ def render_index(
             "pattern_groups": scan_data["pattern_groups"],
             "empty_folders": scan_data["empty_folders"],
             "metadata_mismatches": scan_data["metadata_mismatches"],
+            "unrecognized_groups": scan_data["unrecognized_groups"],
             "directory_tree": scan_data["directory_tree"],
             "pattern_directory_tree": scan_data["pattern_directory_tree"],
             "scan_stats": {
@@ -131,6 +132,7 @@ def render_index(
                 "pattern_groups": len(scan_data["pattern_groups"]),
                 "empty_folders": len(scan_data["empty_folders"]),
                 "metadata_mismatches": len(scan_data["metadata_mismatches"]),
+                "unrecognized_groups": len(scan_data["unrecognized_groups"]),
                 "aliases": len(aliases),
             },
         },

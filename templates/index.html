@@ -377,6 +377,30 @@
         {% endif %}
       </form>
 
+      {% if unrecognized_groups %}
+      <section class="unrecognized-panel" aria-label="Pastas não identificadas">
+        <div class="section-head compact">
+          <div>
+            <p class="eyebrow">Diagnóstico da varredura</p>
+            <h3>Pastas encontradas, mas não identificadas</h3>
+            <p class="muted">Esses arquivos estão na biblioteca, porém o nome não informa temporada e episódio no padrão reconhecido.</p>
+          </div>
+          <span class="summary-pill">{{ unrecognized_groups|length }} pastas</span>
+        </div>
+        <div class="unrecognized-list">
+          {% for group in unrecognized_groups %}
+          <article class="unrecognized-item">
+            <div>
+              <strong>{{ group.folder_name }}</strong>
+              <span class="muted">{{ group.folder_path }}</span>
+            </div>
+            <span class="muted">{{ group.files|join(', ') }}</span>
+          </article>
+          {% endfor %}
+        </div>
+      </section>
+      {% endif %}
+
       <div class="directory-browser directory-browser-secondary">
         <div class="section-head compact">
           <div>

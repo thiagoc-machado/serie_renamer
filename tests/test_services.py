@@ -384,6 +384,20 @@ def test_scan_library_supports_common_homeserver_video_extensions(tmp_path: Path
     assert result["series_groups"][0].entries[0].filename == episode.name
 
 
+def test_scan_library_reports_video_folder_without_episode_pattern(tmp_path: Path, monkeypatch):
+    root = tmp_path / "media" / "Unknown Show"
+    root.mkdir(parents=True)
+    video = root / "episode-final.avi"
+    video.write_text("dummy", encoding="utf-8")
+    monkeypatch.setattr("app.services.read_mp4_metadata", lambda path: {})
+
+    result = scan_library(root.parents[1])
+
+    assert result["series_groups"] == []
+    assert result["unrecognized_groups"][0]["folder_name"] == "Unknown Show"
+    assert result["unrecognized_groups"][0]["files"] == [video.name]
+
+
 def test_delete_empty_folders_removes_only_empty_dirs(tmp_path: Path):
     root = tmp_path / "root"
     data_root = tmp_path / "data"

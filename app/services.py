@@ -25,7 +25,10 @@ except ModuleNotFoundError:  # pragma: no cover
 
 # Formats commonly used by Sonarr/Jellyfin libraries. Metadata writing remains
 # MP4-only, but every supported video can still be scanned and renamed.
-VIDEO_EXTENSIONS = {".mp4", ".m4v", ".mov", ".mkv", ".avi", ".webm", ".m2ts", ".ts"}
+VIDEO_EXTENSIONS = {
+    ".mp4", ".m4v", ".mov", ".mkv", ".avi", ".webm", ".m2ts", ".ts",
+    ".wmv", ".flv", ".mpg", ".mpeg", ".3gp", ".vob", ".ogv",
+}
 MP4_EXTENSIONS = {".mp4", ".m4v", ".mov"}
 RAW_PATTERNS = [
     re.compile(
@@ -886,6 +889,7 @@ def scan_library(root: Path, *, filter_text: str = "") -> dict[str, Any]:
     pattern_groups: dict[tuple[str, str], dict[str, Any]] = {}
     metadata_mismatches: list[MetadataMismatchEntry] = []
     video_files: list[Path] = []
+    recognized_paths: set[Path] = set()
 
     for path in root.rglob("*"):
         if path.is_file() and path.suffix.lower() in VIDEO_EXTENSIONS:
@@ -897,6 +901,7 @@ def scan_library(root: Path, *, filter_text: str = "") -> dict[str, Any]:
             continue
 
         pattern_name, match, organized = matched
+        recognized_paths.add(path.resolve())
         season = int(match.group("season"))
         episode = int(match.group("episode"))
         folder_path, series_folder = extract_series_folder(path, root)
@@ -996,6 +1001,20 @@ def scan_library(root: Path, *, filter_text: str = "") -> dict[str, Any]:
                 )
             )
 
+    unrecognized_groups: dict[str, dict[str, Any]] = {}
+    for path in video_files:
+        if path.resolve() in recognized_paths:
+            continue
+        relative_dir, series_folder = extract_series_folder(path, root)
+        blob = _series_match_blob(series_folder, relative_dir, path.name)
+        if text_filter and text_filter not in blob:
+            continue
+        group = unrecognized_groups.setdefault(
+            relative_dir,
+            {"folder_path": relative_dir, "folder_name": series_folder, "files": []},
+        )
+        group["files"].append(path.name)
+
     empty_folders: list[EmptyFolderEntry] = []
     folder_paths: list[Path] = []
     for path in root.rglob("*"):
@@ -1057,6 +1076,13 @@ def scan_library(root: Path, *, filter_text: str = "") -> dict[str, Any]:
         "pattern_groups": pattern_result,
         "empty_folders": sorted(empty_folders, key=lambda item: (item.depth, item.relative_path)),
         "metadata_mismatches": sorted(metadata_mismatches, key=lambda item: (item.relative_dir, item.filename)),
+        "unrecognized_groups": [
+            {
+                **group,
+                "files": sorted(group["files"]),
+            }
+            for group in sorted(unrecognized_groups.values(), key=lambda item: item["folder_path"])
+        ],
         "directory_tree": directory_tree,
         "pattern_directory_tree": pattern_directory_tree,
         "aliases": load_aliases(),

@@ -622,6 +622,39 @@ button:disabled {
   min-width: 0;
 }
 
+.unrecognized-panel {
+  margin-top: 18px;
+  padding: 18px;
+  border: 1px solid rgba(210, 96, 59, 0.24);
+  border-radius: 18px;
+  background: rgba(255, 248, 241, 0.78);
+}
+
+.unrecognized-list {
+  display: grid;
+  gap: 8px;
+}
+
+.unrecognized-item {
+  display: grid;
+  gap: 5px;
+  padding: 11px 13px;
+  border: 1px solid rgba(23, 33, 43, 0.1);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.72);
+}
+
+.unrecognized-item > div {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.unrecognized-item > div span,
+.unrecognized-item > span {
+  overflow-wrap: anywhere;
+}
+
 .tree-node {
   margin-top: 10px;
   padding-left: 0;
