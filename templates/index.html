@@ -253,6 +253,11 @@
               </div>
               <div class="folder-card-meta">
                 <span class="summary-pill">{{ group.entries|length }} episódios</span>
+                {% if group.attention_count %}
+                <span class="attention-badge">{{ group.attention_count }} para revisar</span>
+                {% else %}
+                <span class="ready-badge">Padrão conferido</span>
+                {% endif %}
                 <span class="card-action-hint">Clique para editar →</span>
               </div>
             </div>

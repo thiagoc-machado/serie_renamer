@@ -32,6 +32,10 @@ VIDEO_EXTENSIONS = {
 MP4_EXTENSIONS = {".mp4", ".m4v", ".mov"}
 RAW_PATTERNS = [
     re.compile(
+        r"^(?P<code>.+?)[\s._-]*T(?P<season>\d{1,2})[\s._-]*E[\s._-]*(?P<episode>\d{1,3})(?:[\s._-]+(?P<title>.+))?$",
+        re.IGNORECASE,
+    ),
+    re.compile(
         r"^(?P<code>[A-Z0-9]+?)[\s._-]*T(?P<season>\d{2})[\s._-]*EP(?P<episode>\d{2,3})$",
         re.IGNORECASE,
     ),
@@ -169,6 +173,7 @@ class FolderGroup:
     display_name: str
     anchor_id: str
     count: int
+    attention_count: int
     seasons: list[int]
     entries: list[FolderFileEntry]
 
@@ -890,6 +895,7 @@ def scan_library(root: Path, *, filter_text: str = "") -> dict[str, Any]:
     metadata_mismatches: list[MetadataMismatchEntry] = []
     video_files: list[Path] = []
     recognized_paths: set[Path] = set()
+    fallback_episode_numbers: defaultdict[tuple[str, int], int] = defaultdict(int)
 
     for path in root.rglob("*"):
         if path.is_file() and path.suffix.lower() in VIDEO_EXTENSIONS:
@@ -897,14 +903,24 @@ def scan_library(root: Path, *, filter_text: str = "") -> dict[str, Any]:
 
     for path in video_files:
         matched = episode_details(path)
-        if not matched:
-            continue
-
-        pattern_name, match, organized = matched
-        recognized_paths.add(path.resolve())
-        season = int(match.group("season"))
-        episode = int(match.group("episode"))
         folder_path, series_folder = extract_series_folder(path, root)
+        if matched:
+            pattern_name, match, organized = matched
+            season = int(match.group("season"))
+            episode = int(match.group("episode"))
+            filename_title = sanitize_name(match.groupdict().get("title") or "")
+        else:
+            # Keep irregular files visible. The inferred values are deliberately
+            # editable, so the user can correct them before applying the batch.
+            season_matches = [re.search(r"(?:season|temporada|s)\s*[-._ ]*(\d{1,2})", part, re.IGNORECASE) for part in path.parent.relative_to(root).parts]
+            season = int(next((match.group(1) for match in reversed(season_matches) if match), "1"))
+            numbers = re.findall(r"(?<!\d)(\d{1,3})(?!\d)", path.stem)
+            key = (folder_path, season)
+            fallback_episode_numbers[key] += 1
+            episode = int(numbers[-1]) if numbers else fallback_episode_numbers[key]
+            pattern_name, organized, filename_title = "unidentified", False, sanitize_name(path.stem)
+
+        recognized_paths.add(path.resolve())
         display_name = _folder_display_name(series_folder, aliases)
         metadata_series_name = extract_metadata_series_name(path)
         metadata_episode_title = extract_metadata_episode_title(path, display_name, season, episode)
@@ -945,7 +961,7 @@ def scan_library(root: Path, *, filter_text: str = "") -> dict[str, Any]:
                 episode=episode,
                 suggested_episode_title=(
                     metadata_episode_title
-                    or sanitize_name(match.groupdict().get("title") or "")
+                    or filename_title
                 ),
                 organized=organized,
                 pattern_name=pattern_name,
@@ -955,7 +971,7 @@ def scan_library(root: Path, *, filter_text: str = "") -> dict[str, Any]:
             )
         )
 
-        if not organized:
+        if matched and not organized:
             raw_group = pattern_groups.setdefault(
                 (folder_path, match.group("code").upper()),
                 {
@@ -1049,6 +1065,7 @@ def scan_library(root: Path, *, filter_text: str = "") -> dict[str, Any]:
             display_name=item["display_name"],
             anchor_id=item["anchor_id"],
             count=item["count"],
+            attention_count=sum(1 for entry in item["entries"] if not entry.organized),
             seasons=sorted(item["seasons"]),
             entries=sorted(item["entries"], key=lambda entry: (entry.season, entry.episode, entry.filename)),
         )

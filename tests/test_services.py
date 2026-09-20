@@ -393,9 +393,27 @@ def test_scan_library_reports_video_folder_without_episode_pattern(tmp_path: Pat
 
     result = scan_library(root.parents[1])
 
-    assert result["series_groups"] == []
-    assert result["unrecognized_groups"][0]["folder_name"] == "Unknown Show"
-    assert result["unrecognized_groups"][0]["files"] == [video.name]
+    assert result["series_groups"][0].display_name == "Unknown Show"
+    entry = result["series_groups"][0].entries[0]
+    assert entry.pattern_name == "unidentified"
+    assert entry.episode == 1
+    assert result["unrecognized_groups"] == []
+
+
+def test_scan_library_recognizes_t_e_episode_names_with_title(tmp_path: Path, monkeypatch):
+    root = tmp_path / "media" / "Connect" / "Season 01"
+    root.mkdir(parents=True)
+    episode = root / "Connect-t1-e-1-Creation.mp4"
+    episode.write_text("dummy", encoding="utf-8")
+    monkeypatch.setattr("app.services.read_mp4_metadata", lambda path: {})
+
+    result = scan_library(root.parents[2])
+
+    assert result["series_groups"][0].display_name == "Connect"
+    entry = result["series_groups"][0].entries[0]
+    assert (entry.season, entry.episode) == (1, 1)
+    assert entry.suggested_episode_title == "Creation"
+    assert result["unrecognized_groups"] == []
 
 
 def test_delete_empty_folders_removes_only_empty_dirs(tmp_path: Path):
