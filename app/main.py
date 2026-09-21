@@ -14,11 +14,13 @@ from .services import (
     apply_metadata_changes,
     delete_empty_folders,
     delete_media_items,
+    apply_generic_changes,
     fetch_episode_titles,
     list_history,
     load_aliases,
     parse_form_instructions,
     scan_library,
+    scan_generic_library,
     undo_batch,
     TMDB_DEFAULT_LANGUAGE,
 )
@@ -103,6 +105,7 @@ def render_index(
 ) -> HTMLResponse:
     current_library = get_library(library_key)
     scan_data = scan_library(scan_root, filter_text=filter_text)
+    generic_groups = scan_generic_library(scan_root, filter_text=filter_text) if library_key != "series" else []
     aliases = load_aliases()
 
     return templates.TemplateResponse(
@@ -135,6 +138,8 @@ def render_index(
                 "unrecognized_groups": len(scan_data["unrecognized_groups"]),
                 "aliases": len(aliases),
             },
+            "generic_groups": generic_groups,
+            "media_mode": library_key != "series",
         },
     )
 
@@ -341,6 +346,7 @@ async def preview(
         episode=episode,
         episode_title=episode_title,
     )
+
     if not instructions:
         return render_index(
             request,
@@ -361,6 +367,48 @@ async def preview(
         result=result,
         message="Prévia gerada sem alterar arquivos.",
     )
+
+
+@app.post("/rename-files", response_class=HTMLResponse)
+async def rename_files(
+    request: Request,
+    library: Annotated[str, Form()] = DEFAULT_LIBRARY_KEY,
+    scan_root: Annotated[str, Form()] = "",
+    destination_root: Annotated[str, Form()] = "",
+    filter_text: Annotated[str, Form()] = "",
+    generic_selected: Annotated[list[str], Form()] = [],
+    generic_file_path: Annotated[list[str], Form()] = [],
+    generic_name: Annotated[list[str], Form()] = [],
+) -> HTMLResponse:
+    current_library = get_library(library)
+    try:
+        source_root = safe_root(scan_root, current_library["scan_root"])
+        target_root = safe_root(destination_root, current_library["destination_root"])
+    except ValueError as exc:
+        return render_index(request, library_key=current_library["key"],
+                            scan_root=current_library["scan_root"].resolve(),
+                            destination_root=current_library["destination_root"].resolve(), message=str(exc))
+
+    selected = _parse_selected_paths(generic_selected)
+    entries: list[tuple[Path, str]] = []
+    for index, raw_path in enumerate(generic_file_path):
+        path = Path(raw_path).resolve()
+        if path in selected and path.is_file() and source_root in path.parents:
+            entries.append((path, generic_name[index] if index < len(generic_name) else path.stem))
+    if not entries:
+        return render_index(request, library_key=current_library["key"], scan_root=source_root,
+                            destination_root=target_root, filter_text=filter_text,
+                            message="Nenhum arquivo foi selecionado para organizar.")
+
+    organize = current_library["key"] in {"movies", "cristaos"}
+    result = apply_generic_changes(entries, destination_root=target_root,
+                                   organize_into_folders=organize, dry_run=False)
+    message = "Arquivos organizados com segurança."
+    if result.get("history_batch_id"):
+        message = f"{message} Lote salvo para desfazer: {result['history_batch_id']}."
+    return render_index(request, library_key=current_library["key"], scan_root=source_root,
+                        destination_root=target_root, filter_text=filter_text,
+                        result=result, message=message)
 
 
 @app.post("/apply-metadata", response_class=HTMLResponse)

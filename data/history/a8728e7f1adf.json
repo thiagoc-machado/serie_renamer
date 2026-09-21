@@ -1,0 +1,18 @@
+{
+  "batch_id": "a8728e7f1adf",
+  "created_at": "2026-09-21T09:45:26.696177+00:00",
+  "operation_count": 1,
+  "operations": [
+    {
+      "source": "/tmp/pytest-of-thiago/pytest-28/test_apply_changes_moves_avi_w0/raw.avi",
+      "target": "/tmp/pytest-of-thiago/pytest-28/test_apply_changes_moves_avi_w0/Show/Season 01/Show - S01E01 - Pilot.avi",
+      "previous_metadata": null,
+      "new_metadata": {
+        "series_name": "Show",
+        "season": 1,
+        "episode": 1,
+        "episode_title": "Pilot"
+      }
+    }
+  ]
+}

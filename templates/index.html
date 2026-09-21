@@ -205,6 +205,7 @@
     </section>
     {% endif %}
 
+    {% if not media_mode %}
     <nav class="page-tabs" role="tablist" aria-label="Seções principais">
       <button id="series-tab" type="button" class="page-tab active" data-tab="series" role="tab" aria-selected="true">Séries</button>
       <button id="patterns-tab" type="button" class="page-tab" data-tab="patterns" role="tab" aria-selected="false">Padrões</button>
@@ -775,6 +776,73 @@
         {% endif %}
       </div>
     </section>
+    {% else %}
+    <section class="generic-media-panel">
+      <div class="section-head">
+        <div>
+          <p class="eyebrow">Organização de {{ current_library.label }}</p>
+          <h2>Arquivos sem temporada e episódio</h2>
+          <p class="muted">Filmes e conteúdo cristão usam a estrutura Radarr: título (ano)/título (ano). Livros e audiolivros permanecem na pasta atual.</p>
+        </div>
+        <span class="summary-pill">{{ generic_groups|length }} pastas</span>
+      </div>
+      <form method="post" action="/rename-files" id="generic-form" class="stack">
+        <input type="hidden" name="library" value="{{ current_library.key }}">
+        <input type="hidden" name="scan_root" value="{{ scan_root }}">
+        <input type="hidden" name="destination_root" value="{{ destination_root }}">
+        <input type="hidden" name="filter_text" value="{{ filter_text }}">
+        {% if generic_groups %}
+        <div class="folder-index">
+          {% for group in generic_groups %}
+          {% set generic_id = "generic-" ~ loop.index0 %}
+          <article class="folder-card" data-open-generic="{{ generic_id }}" role="button" tabindex="0">
+            <div class="folder-card-main">
+              <div>
+                <p class="group-kicker">{{ group.folder_name }}</p>
+                <h3>{{ group.count }} arquivo{% if group.count != 1 %}s{% endif %}</h3>
+                <p class="muted">{{ group.folder_path }}</p>
+              </div>
+              <div class="folder-card-meta">
+                <span class="attention-badge">Revisar títulos</span>
+                <span class="card-action-hint">Clique para editar →</span>
+              </div>
+            </div>
+            <dialog class="edit-dialog" id="dialog-{{ generic_id }}">
+              <div class="dialog-head">
+                <div>
+                  <p class="group-kicker">Edição de arquivos</p>
+                  <h2>{{ group.folder_name }}</h2>
+                  <p class="muted">{{ group.count }} arquivo{% if group.count != 1 %}s{% endif %} • {{ group.folder_path }}</p>
+                </div>
+                <button type="button" class="secondary" data-close-generic="{{ generic_id }}">Fechar</button>
+              </div>
+              <div class="generic-file-list">
+                {% for entry in group.entries %}
+                <div class="generic-file-row">
+                  <label class="inline-check"><input type="checkbox" name="generic_selected" value="{{ entry.source_path }}"></label>
+                  <input type="hidden" name="generic_file_path" value="{{ entry.source_path }}">
+                  <input type="text" value="{{ entry.filename }}" readonly class="current-name">
+                  <input type="text" name="generic_name" value="{{ entry.title }}" placeholder="Título do arquivo">
+                  {% if entry.extension in ['.mp4', '.m4v', '.mov', '.mkv', '.avi', '.webm', '.m2ts', '.ts'] %}
+                  <button type="button" class="play-button" data-play-path="{{ entry.source_path }}" data-play-name="{{ entry.filename }}">▶ Reproduzir</button>
+                  {% endif %}
+                </div>
+                {% endfor %}
+              </div>
+              <div class="group-footer button-row">
+                <span class="muted">Marque os arquivos que deseja organizar.</span>
+                <button type="submit" class="primary" formaction="/rename-files" formnovalidate>Renomear selecionados</button>
+              </div>
+            </dialog>
+          </article>
+          {% endfor %}
+        </div>
+        {% else %}
+        <p class="muted">Nenhum arquivo compatível encontrado nesta biblioteca.</p>
+        {% endif %}
+      </form>
+    </section>
+    {% endif %}
   </main>
 
   <dialog id="player-dialog" class="player-dialog" aria-labelledby="player-title">
@@ -882,6 +950,24 @@
       button.addEventListener('click', () => {
         document.getElementById(`dialog-${button.dataset.closeGroup}`)?.close();
       });
+    });
+
+    document.querySelectorAll('[data-open-generic]').forEach((card) => {
+      const openGeneric = () => document.getElementById(`dialog-${card.dataset.openGeneric}`)?.showModal();
+      card.addEventListener('click', (event) => {
+        if (!event.target.closest('dialog')) openGeneric();
+      });
+      card.addEventListener('keydown', (event) => {
+        if (event.target.closest('dialog') || event.target.matches('input, textarea, select, button')) return;
+        if (event.key === 'Enter' || event.key === ' ') {
+          event.preventDefault();
+          openGeneric();
+        }
+      });
+    });
+
+    document.querySelectorAll('[data-close-generic]').forEach((button) => {
+      button.addEventListener('click', () => document.getElementById(`dialog-${button.dataset.closeGeneric}`)?.close());
     });
 
     document.querySelectorAll('.edit-dialog').forEach((dialog) => {

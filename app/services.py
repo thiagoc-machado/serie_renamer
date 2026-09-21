@@ -30,6 +30,9 @@ VIDEO_EXTENSIONS = {
     ".wmv", ".flv", ".mpg", ".mpeg", ".3gp", ".vob", ".ogv",
 }
 MP4_EXTENSIONS = {".mp4", ".m4v", ".mov"}
+GENERIC_EXTENSIONS = VIDEO_EXTENSIONS | {
+    ".pdf", ".epub", ".mobi", ".azw", ".azw3", ".mp3", ".m4a", ".flac", ".wav", ".ogg",
+}
 RAW_PATTERNS = [
     re.compile(
         r"^(?P<code>.+?)[\s._-]*T(?P<season>\d{1,2})[\s._-]*E[\s._-]*(?P<episode>\d{1,3})(?:[\s._-]+(?P<title>.+))?$",
@@ -55,7 +58,7 @@ ORGANIZED_EPISODE_PATTERN = re.compile(
     r"^(?P<name>.+?)\s+-\s+S(?P<season>\d{1,2})E(?P<episode>\d{1,3})(?:\s+-\s+(?P<title>.+))?$",
     re.IGNORECASE,
 )
-SAFE_CHARS = re.compile(r"[^A-Za-z0-9À-ÿ _.\-]+")
+SAFE_CHARS = re.compile(r"[^A-Za-z0-9À-ÿ _.\-()]+")
 MULTI_SPACE = re.compile(r"\s+")
 GENERIC_FOLDER_NAMES = {"tv", "shows", "series", "temporadas", "videos", "media"}
 GENERIC_LABELS = {
@@ -233,6 +236,23 @@ class RenameInstruction:
     season: int
     episode: int
     episode_title: str = ""
+
+
+@dataclass(slots=True)
+class GenericFileEntry:
+    source_path: Path
+    relative_dir: str
+    filename: str
+    extension: str
+    title: str
+
+
+@dataclass(slots=True)
+class GenericGroup:
+    folder_path: str
+    folder_name: str
+    count: int
+    entries: list[GenericFileEntry]
 
 
 def ensure_state_dirs() -> None:
@@ -1104,6 +1124,84 @@ def scan_library(root: Path, *, filter_text: str = "") -> dict[str, Any]:
         "pattern_directory_tree": pattern_directory_tree,
         "aliases": load_aliases(),
     }
+
+
+def scan_generic_library(root: Path, *, filter_text: str = "") -> list[GenericGroup]:
+    """Scan movie/book/audio libraries without series season/episode rules."""
+    clean_filter = sanitize_name(filter_text).casefold()
+    groups: dict[str, list[GenericFileEntry]] = defaultdict(list)
+    for path in root.rglob("*"):
+        if not path.is_file() or path.suffix.lower() not in GENERIC_EXTENSIONS:
+            continue
+        relative_dir = str(path.parent.relative_to(root))
+        title = sanitize_name(path.stem)
+        search_blob = _series_match_blob(path.name, title, relative_dir)
+        if clean_filter and clean_filter not in search_blob:
+            continue
+        groups[relative_dir].append(
+            GenericFileEntry(
+                source_path=path.resolve(),
+                relative_dir=relative_dir,
+                filename=path.name,
+                extension=path.suffix.lower(),
+                title=title,
+            )
+        )
+
+    return [
+        GenericGroup(
+            folder_path=folder_path,
+            folder_name=Path(folder_path).name if folder_path != "." else root.name,
+            count=len(entries),
+            entries=sorted(entries, key=lambda item: item.filename.casefold()),
+        )
+        for folder_path, entries in sorted(groups.items())
+    ]
+
+
+def apply_generic_changes(
+    entries: list[tuple[Path, str]],
+    *,
+    destination_root: Path,
+    organize_into_folders: bool,
+    dry_run: bool = False,
+) -> dict[str, Any]:
+    result: dict[str, Any] = {"updated": [], "errors": [], "preview": [], "history_batch_id": None, "integrations": []}
+    operations: list[dict[str, Any]] = []
+    occupied: set[Path] = set()
+    for source, raw_title in entries:
+        source = source.resolve()
+        title = sanitize_name(raw_title)
+        if not title:
+            result["errors"].append(f"{source.name}: título vazio.")
+            continue
+        target_dir = destination_root / title if organize_into_folders else source.parent
+        target = target_dir / f"{title}{source.suffix.lower()}"
+        if target in occupied or (target.exists() and target != source):
+            result["errors"].append(f"{source.name}: destino já existe: {target}")
+            continue
+        occupied.add(target)
+        item = {"source": str(source), "target": str(target), "title": title, "conflict": ""}
+        result["preview"].append(item)
+        if dry_run:
+            continue
+        try:
+            safe_move(source, target)
+            result["updated"].append(f"{source.name} -> {target}")
+            operations.append({"source": str(source), "target": str(target), "type": "rename"})
+        except Exception as exc:  # pragma: no cover
+            result["errors"].append(f"{source.name}: {exc}")
+    if operations:
+        batch_id = uuid.uuid4().hex[:12]
+        save_history({
+            "batch_id": batch_id,
+            "created_at": datetime.now(timezone.utc).isoformat(),
+            "operation_count": len(operations),
+            "operations": operations,
+        })
+        result["history_batch_id"] = batch_id
+        result["integrations"] = trigger_integrations()
+    return result
 
 
 def build_target_filename(series_name: str, season: int, episode: int, episode_title: str, extension: str) -> str:

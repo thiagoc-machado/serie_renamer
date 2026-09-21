@@ -8,6 +8,7 @@ from app.services import (
     EpisodeGroup,
     RenameInstruction,
     apply_changes,
+    apply_generic_changes,
     delete_empty_folders,
     delete_media_items,
     apply_online_titles_to_groups,
@@ -92,6 +93,21 @@ def test_apply_changes_moves_avi_without_mp4_metadata_processing(tmp_path: Path)
     assert result["errors"] == []
     assert not source.exists()
     assert (tmp_path / "Show" / "Season 01" / "Show - S01E01 - Pilot.avi").exists()
+
+
+def test_apply_generic_changes_uses_radarr_movie_layout(tmp_path: Path):
+    source = tmp_path / "loose-file.mkv"
+    source.write_text("dummy", encoding="utf-8")
+
+    result = apply_generic_changes(
+        [(source, "A Movie (2024)")],
+        destination_root=tmp_path / "movies",
+        organize_into_folders=True,
+    )
+
+    target = tmp_path / "movies" / "A Movie (2024)" / "A Movie (2024).mkv"
+    assert result["errors"] == []
+    assert target.exists()
 
 
 def test_parse_form_instructions_filters_outside_source_root(tmp_path: Path):
