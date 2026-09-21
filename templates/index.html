@@ -130,7 +130,11 @@
           {% for item in result.preview %}
           <article class="preview-item {% if item.conflict %}preview-error{% endif %}">
             <div>
+              {% if item.series_name is defined %}
               <strong>{{ item.series_name }} • S{{ "%02d"|format(item.season) }}E{{ "%02d"|format(item.episode) }}</strong>
+              {% else %}
+              <strong>{{ item.title }}</strong>
+              {% endif %}
               <span>{{ item.source }}</span>
             </div>
             <div>
