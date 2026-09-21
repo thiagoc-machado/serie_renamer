@@ -233,6 +233,7 @@
         <input type="hidden" name="scan_root" value="{{ scan_root }}">
         <input type="hidden" name="destination_root" value="{{ destination_root }}">
         <input type="hidden" name="filter_text" value="{{ filter_text }}">
+        <input type="hidden" name="generic_selection" id="generic-selection" value="">
 
         {% if series_groups %}
         <div class="folder-index" aria-label="Pastas de séries">
@@ -1004,7 +1005,23 @@
     });
 
     const genericForm = document.getElementById('generic-form');
+    const genericSelection = document.getElementById('generic-selection');
+    const syncGenericSelection = () => {
+      if (!genericSelection) return;
+      const selectedRows = [...document.querySelectorAll('#generic-form input[name="selected_path"]:checked')]
+        .map((checkbox) => checkbox.closest('.generic-file-row'))
+        .filter(Boolean)
+        .map((row) => ({
+          path: row.querySelector('input[name="generic_file_path"]')?.value || '',
+          title: row.querySelector('input[name="generic_name"]')?.value || '',
+        }));
+      genericSelection.value = JSON.stringify(selectedRows);
+    };
+    document.querySelectorAll('#generic-form input[name="selected_path"]').forEach((checkbox) => {
+      checkbox.addEventListener('change', syncGenericSelection);
+    });
     genericForm?.addEventListener('submit', () => {
+      syncGenericSelection();
       genericForm.querySelectorAll('input[data-normalized-selection]').forEach((input) => input.remove());
       const selectedRows = [...genericForm.querySelectorAll('input[name="selected_path"]:checked')]
         .map((checkbox) => checkbox.closest('.generic-file-row'))

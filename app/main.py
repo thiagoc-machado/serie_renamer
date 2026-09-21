@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from pathlib import Path
 from typing import Annotated
 
@@ -393,6 +394,7 @@ async def rename_files(
     filter_text: Annotated[str, Form()] = "",
     selected_path: Annotated[list[str], Form()] = [],
     generic_selected: Annotated[list[str], Form()] = [],
+    generic_selection: Annotated[str, Form()] = "",
     generic_file_path: Annotated[list[str], Form()] = [],
     generic_name: Annotated[list[str], Form()] = [],
 ) -> HTMLResponse:
@@ -407,10 +409,25 @@ async def rename_files(
 
     selected = _parse_selected_paths([*selected_path, *generic_selected])
     entries: list[tuple[Path, str]] = []
-    for index, raw_path in enumerate(generic_file_path):
-        path = Path(raw_path).resolve()
-        if path in selected and path.is_file() and source_root in path.parents:
-            entries.append((path, generic_name[index] if index < len(generic_name) else path.stem))
+    if generic_selection.strip():
+        try:
+            payload = json.loads(generic_selection)
+        except json.JSONDecodeError:
+            payload = []
+        if isinstance(payload, list):
+            for item in payload:
+                if not isinstance(item, dict):
+                    continue
+                path = Path(str(item.get("path", ""))).expanduser().resolve()
+                if path.is_file() and source_root in path.parents:
+                    entries.append((path, str(item.get("title", path.stem))))
+    if entries:
+        selected = {path.resolve() for path, _ in entries}
+    if not entries:
+        for index, raw_path in enumerate(generic_file_path):
+            path = Path(raw_path).resolve()
+            if path in selected and path.is_file() and source_root in path.parents:
+                entries.append((path, generic_name[index] if index < len(generic_name) else path.stem))
     if not entries:
         return render_index(request, library_key=current_library["key"], scan_root=source_root,
                             destination_root=target_root, filter_text=filter_text,
