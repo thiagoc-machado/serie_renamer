@@ -558,6 +558,40 @@ def _tmdb_search_show(series_name: str, language: str | None = None) -> dict[str
     return None
 
 
+def _tmdb_search_movie(movie_name: str, language: str | None = None) -> str:
+    clean_name = sanitize_name(movie_name)
+    if not clean_name:
+        return ""
+    try:
+        payload = _tmdb_get_json(
+            "/search/movie",
+            {
+                "query": clean_name,
+                "language": tmdb_language_code(language),
+                "include_adult": "false",
+            },
+        )
+    except Exception:
+        return ""
+    results = payload.get("results", []) if isinstance(payload, dict) else []
+    if not results:
+        return ""
+    normalized_query = normalize_text(clean_name)
+    ranked: list[tuple[float, dict[str, Any]]] = []
+    for item in results:
+        candidates = [item.get("title", ""), item.get("original_title", "")]
+        score = max(
+            (SequenceMatcher(None, normalized_query, normalize_text(str(candidate))).ratio()
+             for candidate in candidates if normalize_text(str(candidate))),
+            default=0.0,
+        )
+        ranked.append((score, item))
+    _, best = max(ranked, key=lambda value: value[0])
+    title = sanitize_name(best.get("title", "") or best.get("original_title", ""))
+    year = str(best.get("release_date", ""))[:4]
+    return f"{title} ({year})" if title and year.isdigit() else title
+
+
 def _episode_title_from_payload(payload: Any, language: str | None = None) -> str:
     if not isinstance(payload, dict):
         return ""

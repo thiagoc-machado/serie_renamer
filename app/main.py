@@ -16,6 +16,7 @@ from .services import (
     delete_media_items,
     apply_generic_changes,
     fetch_episode_titles,
+    _tmdb_search_movie,
     list_history,
     load_aliases,
     parse_form_instructions,
@@ -191,6 +192,16 @@ async def group_titles(
             ],
         }
     )
+
+
+@app.post("/movie-title", response_class=JSONResponse)
+async def movie_title(
+    query: Annotated[str, Form()] = "",
+    language: Annotated[str, Form()] = TMDB_DEFAULT_LANGUAGE,
+) -> JSONResponse:
+    clean_query = query.strip()
+    title = _tmdb_search_movie(clean_query, language=language)
+    return JSONResponse({"query": clean_query, "title": title, "configured": bool(services.TMDB_BEARER_TOKEN)})
 
 
 @app.get("/", response_class=HTMLResponse)
@@ -376,7 +387,7 @@ async def rename_files(
     scan_root: Annotated[str, Form()] = "",
     destination_root: Annotated[str, Form()] = "",
     filter_text: Annotated[str, Form()] = "",
-    generic_selected: Annotated[list[str], Form()] = [],
+    selected_path: Annotated[list[str], Form()] = [],
     generic_file_path: Annotated[list[str], Form()] = [],
     generic_name: Annotated[list[str], Form()] = [],
 ) -> HTMLResponse:
@@ -389,7 +400,7 @@ async def rename_files(
                             scan_root=current_library["scan_root"].resolve(),
                             destination_root=current_library["destination_root"].resolve(), message=str(exc))
 
-    selected = _parse_selected_paths(generic_selected)
+    selected = _parse_selected_paths(selected_path)
     entries: list[tuple[Path, str]] = []
     for index, raw_path in enumerate(generic_file_path):
         path = Path(raw_path).resolve()

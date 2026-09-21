@@ -1376,7 +1376,7 @@ select:focus-visible {
 
 .generic-file-row {
   display: grid;
-  grid-template-columns: 30px minmax(220px, 1fr) minmax(260px, 1fr) auto;
+  grid-template-columns: 30px minmax(220px, 1fr) minmax(260px, 1fr) auto auto;
   gap: 10px;
   align-items: center;
   padding: 9px;
@@ -1399,6 +1399,7 @@ select:focus-visible {
   }
 
   .generic-file-row input,
+  .generic-file-row .movie-search-button,
   .generic-file-row .play-button {
     grid-column: 2;
   }

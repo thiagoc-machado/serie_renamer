@@ -21,6 +21,7 @@ from app.services import (
     scan_media,
     safe_move,
     scan_library,
+    _tmdb_search_movie,
 )
 
 
@@ -108,6 +109,18 @@ def test_apply_generic_changes_uses_radarr_movie_layout(tmp_path: Path):
     target = tmp_path / "movies" / "A Movie (2024)" / "A Movie (2024).mkv"
     assert result["errors"] == []
     assert target.exists()
+
+
+def test_tmdb_search_movie_returns_radarr_title(monkeypatch):
+    monkeypatch.setattr(
+        "app.services._tmdb_get_json",
+        lambda path, params: {
+            "results": [{"title": "A Movie", "original_title": "A Movie", "release_date": "2024-01-01"}]
+        },
+    )
+    monkeypatch.setattr("app.services.TMDB_BEARER_TOKEN", "token")
+
+    assert _tmdb_search_movie("A Movie") == "A Movie (2024)"
 
 
 def test_parse_form_instructions_filters_outside_source_root(tmp_path: Path):

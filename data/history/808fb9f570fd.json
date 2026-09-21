@@ -1,0 +1,12 @@
+{
+  "batch_id": "808fb9f570fd",
+  "created_at": "2026-09-21T10:03:31.319764+00:00",
+  "operation_count": 1,
+  "operations": [
+    {
+      "source": "/tmp/pytest-of-thiago/pytest-29/test_apply_generic_changes_use0/loose-file.mkv",
+      "target": "/tmp/pytest-of-thiago/pytest-29/test_apply_generic_changes_use0/movies/A Movie (2024)/A Movie (2024).mkv",
+      "type": "rename"
+    }
+  ]
+}
