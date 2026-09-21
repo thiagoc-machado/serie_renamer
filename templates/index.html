@@ -233,7 +233,6 @@
         <input type="hidden" name="scan_root" value="{{ scan_root }}">
         <input type="hidden" name="destination_root" value="{{ destination_root }}">
         <input type="hidden" name="filter_text" value="{{ filter_text }}">
-        <input type="hidden" name="generic_selection" id="generic-selection" value="">
 
         {% if series_groups %}
         <div class="folder-index" aria-label="Pastas de séries">
@@ -792,6 +791,7 @@
         <input type="hidden" name="scan_root" value="{{ scan_root }}">
         <input type="hidden" name="destination_root" value="{{ destination_root }}">
         <input type="hidden" name="filter_text" value="{{ filter_text }}">
+        <input type="hidden" name="generic_selection" id="generic-selection" value="">
         {% if generic_groups %}
         <div class="folder-index">
           {% for group in generic_groups %}
