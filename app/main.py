@@ -392,6 +392,7 @@ async def rename_files(
     destination_root: Annotated[str, Form()] = "",
     filter_text: Annotated[str, Form()] = "",
     selected_path: Annotated[list[str], Form()] = [],
+    generic_selected: Annotated[list[str], Form()] = [],
     generic_file_path: Annotated[list[str], Form()] = [],
     generic_name: Annotated[list[str], Form()] = [],
 ) -> HTMLResponse:
@@ -404,7 +405,7 @@ async def rename_files(
                             scan_root=current_library["scan_root"].resolve(),
                             destination_root=current_library["destination_root"].resolve(), message=str(exc))
 
-    selected = _parse_selected_paths(selected_path)
+    selected = _parse_selected_paths([*selected_path, *generic_selected])
     entries: list[tuple[Path, str]] = []
     for index, raw_path in enumerate(generic_file_path):
         path = Path(raw_path).resolve()

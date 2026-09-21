@@ -1003,6 +1003,19 @@
       button.addEventListener('click', () => document.getElementById(`dialog-${button.dataset.closeGeneric}`)?.close());
     });
 
+    const genericForm = document.getElementById('generic-form');
+    genericForm?.addEventListener('submit', () => {
+      genericForm.querySelectorAll('input[data-normalized-selection]').forEach((input) => input.remove());
+      genericForm.querySelectorAll('input[name="selected_path"]:checked').forEach((checkbox) => {
+        const hidden = document.createElement('input');
+        hidden.type = 'hidden';
+        hidden.name = 'generic_selected';
+        hidden.value = checkbox.value;
+        hidden.dataset.normalizedSelection = 'true';
+        genericForm.appendChild(hidden);
+      });
+    });
+
     document.querySelectorAll('.edit-dialog').forEach((dialog) => {
       dialog.addEventListener('cancel', (event) => event.preventDefault());
     });
