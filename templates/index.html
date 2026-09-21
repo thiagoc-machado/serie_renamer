@@ -819,10 +819,10 @@
               <div class="generic-file-list">
                 {% for entry in group.entries %}
                 <div class="generic-file-row">
-                  <label class="inline-check"><input type="checkbox" name="selected_path" value="{{ entry.source_path }}"></label>
-                  <input type="hidden" name="generic_file_path" value="{{ entry.source_path }}">
-                  <input type="text" value="{{ entry.filename }}" readonly class="current-name">
-                  <input id="movie-name-{{ generic_id }}-{{ loop.index0 }}" type="text" name="generic_name" value="{{ entry.title }}" placeholder="Título do arquivo">
+                  <label class="inline-check"><input type="checkbox" name="selected_path" value="{{ entry.source_path }}" form="generic-form"></label>
+                  <input type="hidden" name="generic_file_path" value="{{ entry.source_path }}" form="generic-form">
+                  <input type="text" value="{{ entry.filename }}" readonly class="current-name" form="generic-form">
+                  <input id="movie-name-{{ generic_id }}-{{ loop.index0 }}" type="text" name="generic_name" value="{{ entry.title }}" placeholder="Título do arquivo" form="generic-form">
                   {% if current_library.key in ['movies', 'cristaos'] %}
                   <button type="button" class="secondary movie-search-button" data-movie-query="{{ entry.title }}" data-movie-target="movie-name-{{ generic_id }}-{{ loop.index0 }}">Buscar nome</button>
                   {% endif %}
@@ -834,7 +834,7 @@
               </div>
               <div class="group-footer button-row">
                 <span class="muted">Marque os arquivos que deseja organizar.</span>
-                <button type="submit" class="primary" formaction="/rename-files" formnovalidate>Renomear selecionados</button>
+                <button type="submit" class="primary" form="generic-form" formaction="/rename-files" formnovalidate>Renomear selecionados</button>
               </div>
             </dialog>
           </article>
