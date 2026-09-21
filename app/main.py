@@ -107,7 +107,15 @@ def render_index(
 ) -> HTMLResponse:
     current_library = get_library(library_key)
     scan_data = scan_library(scan_root, filter_text=filter_text)
-    generic_groups = scan_generic_library(scan_root, filter_text=filter_text) if library_key != "series" else []
+    generic_groups = (
+        scan_generic_library(
+            scan_root,
+            filter_text=filter_text,
+            radarr_mode=library_key in {"movies", "cristaos"},
+        )
+        if library_key != "series"
+        else []
+    )
     aliases = load_aliases()
 
     return templates.TemplateResponse(

@@ -254,6 +254,7 @@ class GenericFileEntry:
     filename: str
     extension: str
     title: str
+    organized: bool
 
 
 @dataclass(slots=True)
@@ -261,6 +262,7 @@ class GenericGroup:
     folder_path: str
     folder_name: str
     count: int
+    attention_count: int
     entries: list[GenericFileEntry]
 
 
@@ -1211,7 +1213,12 @@ def scan_library(root: Path, *, filter_text: str = "") -> dict[str, Any]:
     }
 
 
-def scan_generic_library(root: Path, *, filter_text: str = "") -> list[GenericGroup]:
+def scan_generic_library(
+    root: Path,
+    *,
+    filter_text: str = "",
+    radarr_mode: bool = False,
+) -> list[GenericGroup]:
     """Scan movie/book/audio libraries without series season/episode rules."""
     clean_filter = sanitize_name(filter_text).casefold()
     groups: dict[str, list[GenericFileEntry]] = defaultdict(list)
@@ -1230,6 +1237,12 @@ def scan_generic_library(root: Path, *, filter_text: str = "") -> list[GenericGr
                 filename=path.name,
                 extension=path.suffix.lower(),
                 title=title,
+                organized=(
+                    radarr_mode
+                    and relative_dir != "."
+                    and Path(relative_dir).name.casefold() == title.casefold()
+                    and path.stem.casefold() == title.casefold()
+                ),
             )
         )
 
@@ -1238,6 +1251,7 @@ def scan_generic_library(root: Path, *, filter_text: str = "") -> list[GenericGr
             folder_path=folder_path,
             folder_name=Path(folder_path).name if folder_path != "." else root.name,
             count=len(entries),
+            attention_count=sum(1 for entry in entries if not entry.organized),
             entries=sorted(entries, key=lambda item: item.filename.casefold()),
         )
         for folder_path, entries in sorted(groups.items())

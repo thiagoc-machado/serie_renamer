@@ -808,7 +808,11 @@
                 <p class="muted">{{ group.folder_path }}</p>
               </div>
               <div class="folder-card-meta">
-                <span class="attention-badge">Revisar títulos</span>
+                {% if group.attention_count %}
+                <span class="attention-badge">{{ group.attention_count }} para revisar</span>
+                {% else %}
+                <span class="ready-badge">Padrão conferido</span>
+                {% endif %}
                 <span class="card-action-hint">Clique para editar →</span>
               </div>
             </div>
