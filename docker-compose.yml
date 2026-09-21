@@ -2,15 +2,12 @@ services:
   series-renamer:
     build: .
     container_name: series-renamer
+    env_file:
+      - .env
     ports:
       - "8085:8085"
     environment:
       APP_DATA_DIR: /config/series-renamer
-      SONARR_URL: ""
-      SONARR_API_KEY: ""
-      JELLYFIN_URL: ""
-      JELLYFIN_API_KEY: ""
-      JELLYFIN_LIBRARY_ID: ""
     volumes:
       - /opt/appdata/jellyfin:/config
       - /mnt/storage/movies:/media/movies

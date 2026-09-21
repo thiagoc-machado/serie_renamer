@@ -16,7 +16,7 @@ from .services import (
     delete_media_items,
     apply_generic_changes,
     fetch_episode_titles,
-    _tmdb_search_movie,
+    fetch_movie_title,
     list_history,
     load_aliases,
     parse_form_instructions,
@@ -200,8 +200,12 @@ async def movie_title(
     language: Annotated[str, Form()] = TMDB_DEFAULT_LANGUAGE,
 ) -> JSONResponse:
     clean_query = query.strip()
-    title = _tmdb_search_movie(clean_query, language=language)
-    return JSONResponse({"query": clean_query, "title": title, "configured": bool(services.TMDB_BEARER_TOKEN)})
+    title = fetch_movie_title(clean_query, language=language)
+    return JSONResponse({
+        "query": clean_query,
+        "title": title,
+        "configured": True,
+    })
 
 
 @app.get("/", response_class=HTMLResponse)

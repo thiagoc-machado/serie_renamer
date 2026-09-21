@@ -16,6 +16,14 @@ from urllib.parse import quote, urlencode
 from urllib.request import Request, urlopen
 
 try:
+    from dotenv import load_dotenv
+except ModuleNotFoundError:  # pragma: no cover
+    load_dotenv = None
+
+if load_dotenv:
+    load_dotenv()
+
+try:
     from mutagen.mp4 import MP4, MP4StreamInfoError
 except ModuleNotFoundError:  # pragma: no cover
     MP4 = None
@@ -92,6 +100,7 @@ JELLYFIN_URL = os.getenv("JELLYFIN_URL", "").strip()
 JELLYFIN_API_KEY = os.getenv("JELLYFIN_API_KEY", "").strip()
 JELLYFIN_LIBRARY_ID = os.getenv("JELLYFIN_LIBRARY_ID", "").strip()
 TMDB_BEARER_TOKEN = os.getenv("TMDB_BEARER_TOKEN", "").strip()
+TMDB_API_KEY = os.getenv("TMDB_API_KEY", "").strip()
 TMDB_DEFAULT_LANGUAGE = os.getenv("TMDB_DEFAULT_LANGUAGE", "pt-BR").strip() or "pt-BR"
 TMDB_SEARCH_LANGUAGES = [TMDB_DEFAULT_LANGUAGE, "en-US", "es-ES", None]
 SEARCH_STOPWORDS = {
@@ -430,21 +439,20 @@ def _http_get_json(url: str, headers: dict[str, str] | None = None) -> Any:
 
 
 def _tmdb_get_json(path: str, params: dict[str, Any] | None = None) -> Any:
-    if not TMDB_BEARER_TOKEN:
-        raise RuntimeError("TMDB_BEARER_TOKEN ausente.")
+    if not TMDB_BEARER_TOKEN and not TMDB_API_KEY:
+        raise RuntimeError("TMDB_BEARER_TOKEN ou TMDB_API_KEY ausente.")
 
-    query = urlencode({key: value for key, value in (params or {}).items() if value not in (None, "")})
+    query_params = dict(params or {})
+    if TMDB_API_KEY:
+        query_params["api_key"] = TMDB_API_KEY
+    query = urlencode({key: value for key, value in query_params.items() if value not in (None, "")})
     url = f"https://api.themoviedb.org/3{path}"
     if query:
         url = f"{url}?{query}"
-    return _http_get_json(
-        url,
-        headers={
-            "Authorization": f"Bearer {TMDB_BEARER_TOKEN}",
-            "accept": "application/json",
-            "User-Agent": "series-renamer/1.0",
-        },
-    )
+    headers = {"accept": "application/json", "User-Agent": "series-renamer/1.0"}
+    if TMDB_BEARER_TOKEN:
+        headers["Authorization"] = f"Bearer {TMDB_BEARER_TOKEN}"
+    return _http_get_json(url, headers=headers)
 
 
 def _pick_tmdb_show(results: list[dict[str, Any]], query: str) -> dict[str, Any] | None:
@@ -590,6 +598,49 @@ def _tmdb_search_movie(movie_name: str, language: str | None = None) -> str:
     title = sanitize_name(best.get("title", "") or best.get("original_title", ""))
     year = str(best.get("release_date", ""))[:4]
     return f"{title} ({year})" if title and year.isdigit() else title
+
+
+def _imdb_search_movie(movie_name: str) -> str:
+    clean_name = sanitize_name(movie_name)
+    if not clean_name:
+        return ""
+    try:
+        payload = _http_get_json(
+            f"https://v3.sg.media-imdb.com/suggestion/x/{quote(clean_name)}.json",
+            headers={"User-Agent": "series-renamer/1.0"},
+        )
+    except Exception:
+        return ""
+    candidates = payload.get("d", []) if isinstance(payload, dict) else []
+    normalized_query = normalize_text(clean_name)
+    ranked: list[tuple[float, dict[str, Any]]] = []
+    for item in candidates:
+        if not isinstance(item, dict) or item.get("q") not in {"feature", "TV movie", "video", "movie"}:
+            continue
+        title = str(item.get("l", ""))
+        normalized_title = normalize_text(title)
+        if not normalized_title:
+            continue
+        score = SequenceMatcher(None, normalized_query, normalized_title).ratio()
+        ranked.append((score, item))
+    if not ranked:
+        return ""
+    _, best = max(ranked, key=lambda value: value[0])
+    title = sanitize_name(str(best.get("l", "")))
+    year = str(best.get("y", ""))
+    return f"{title} ({year})" if title and year.isdigit() else title
+
+
+def fetch_movie_title(movie_name: str, language: str | None = None) -> str:
+    for candidate in _query_variants(movie_name):
+        title = _tmdb_search_movie(candidate, language=language)
+        if title:
+            return title
+    for candidate in _query_variants(movie_name):
+        title = _imdb_search_movie(candidate)
+        if title:
+            return title
+    return ""
 
 
 def _episode_title_from_payload(payload: Any, language: str | None = None) -> str:

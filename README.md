@@ -62,6 +62,21 @@ Abra:
 
 `http://SEU_SERVIDOR:8085`
 
+### Configuração local sem versionar credenciais
+
+Copie `.env.example` para `.env` e preencha os tokens desejados. O `.env` está
+ignorado pelo Git e é carregado automaticamente pela aplicação e pelo Docker Compose:
+
+```bash
+cp .env.example .env
+```
+
+Depois de alterar o `.env`, recrie o container:
+
+```bash
+docker compose up -d --build --force-recreate
+```
+
 ## Observações
 
 - O app só processa `mp4`, `m4v` e `mov`
@@ -88,6 +103,7 @@ environment:
   JELLYFIN_API_KEY: "sua-chave"
   JELLYFIN_LIBRARY_ID: "id-da-biblioteca"
   TMDB_BEARER_TOKEN: "seu-bearer-token"
+  TMDB_API_KEY: "sua-chave-v3-opcional"
   TMDB_DEFAULT_LANGUAGE: "pt-BR"
 ```
 
