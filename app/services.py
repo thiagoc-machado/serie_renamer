@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import hashlib
 import logging
 import os
 import re
@@ -98,6 +99,10 @@ DEFAULT_DATA_ROOT = Path(__file__).resolve().parent.parent / "data"
 DATA_ROOT = Path(os.getenv("APP_DATA_DIR", str(DEFAULT_DATA_ROOT))).resolve()
 ALIASES_FILE = DATA_ROOT / "series_aliases.json"
 HISTORY_DIR = DATA_ROOT / "history"
+SCAN_CACHE_DIR = DATA_ROOT / "scan-cache"
+SCAN_CACHE_SCHEMA = 2
+_SCAN_CACHE_MEMORY: dict[str, Any] = {}
+_SCAN_CACHE_MEMORY_ROOTS: dict[str, str] = {}
 
 NO_DELETE_MODE = True
 ALLOWED_ROOTS: list[Path] = []
@@ -277,6 +282,108 @@ class GenericGroup:
 def ensure_state_dirs() -> None:
     DATA_ROOT.mkdir(parents=True, exist_ok=True)
     HISTORY_DIR.mkdir(parents=True, exist_ok=True)
+    SCAN_CACHE_DIR.mkdir(parents=True, exist_ok=True)
+
+
+def _scan_cache_json_default(value: Any) -> Any:
+    if isinstance(value, Path):
+        return str(value)
+    if hasattr(value, "__dataclass_fields__"):
+        return asdict(value)
+    raise TypeError(f"Unsupported scan cache value: {type(value).__name__}")
+
+
+def _plain_scan_data(data: Any) -> Any:
+    return json.loads(json.dumps(data, ensure_ascii=False, default=_scan_cache_json_default))
+
+
+def cached_scan(
+    root: Path,
+    *,
+    scan_type: str,
+    filter_text: str = "",
+    radarr_mode: bool = False,
+    force_refresh: bool = False,
+) -> Any:
+    """Read a persistent scan snapshot, or compute and save it when stale/forced."""
+    try:
+        ensure_state_dirs()
+    except OSError as exc:
+        logger.warning("Scan cache unavailable; scanning %s directly: %s", root, exc)
+        if scan_type == "series":
+            return _plain_scan_data(scan_library(root, filter_text=filter_text))
+        if scan_type == "generic":
+            return _plain_scan_data(
+                scan_generic_library(root, filter_text=filter_text, radarr_mode=radarr_mode)
+            )
+        raise ValueError(f"Unknown scan type: {scan_type}")
+    cache_input = json.dumps(
+        {
+            "schema": SCAN_CACHE_SCHEMA,
+            "scan_type": scan_type,
+            "root": str(root.resolve()),
+            "filter_text": filter_text,
+            "radarr_mode": radarr_mode,
+        },
+        ensure_ascii=False,
+        sort_keys=True,
+    )
+    cache_key = hashlib.sha256(cache_input.encode("utf-8")).hexdigest()
+    cache_path = SCAN_CACHE_DIR / f"{cache_key}.json"
+    root_key = str(root.resolve())
+
+    if force_refresh:
+        for old_key, cached_root in list(_SCAN_CACHE_MEMORY_ROOTS.items()):
+            if cached_root == root_key:
+                _SCAN_CACHE_MEMORY.pop(old_key, None)
+                _SCAN_CACHE_MEMORY_ROOTS.pop(old_key, None)
+        for old_cache_path in SCAN_CACHE_DIR.glob("*.json"):
+            try:
+                old_payload = json.loads(old_cache_path.read_text(encoding="utf-8"))
+                if old_payload.get("root") == root_key:
+                    old_cache_path.unlink()
+            except (OSError, json.JSONDecodeError, AttributeError):
+                continue
+
+    if not force_refresh:
+        if cache_key in _SCAN_CACHE_MEMORY:
+            return _SCAN_CACHE_MEMORY[cache_key]
+        try:
+            cached = json.loads(cache_path.read_text(encoding="utf-8"))
+            if cached.get("schema") == SCAN_CACHE_SCHEMA and "data" in cached:
+                _SCAN_CACHE_MEMORY[cache_key] = cached["data"]
+                _SCAN_CACHE_MEMORY_ROOTS[cache_key] = root_key
+                return cached["data"]
+        except (OSError, json.JSONDecodeError, AttributeError):
+            pass
+
+    if scan_type == "series":
+        data = scan_library(root, filter_text=filter_text)
+    elif scan_type == "generic":
+        data = scan_generic_library(root, filter_text=filter_text, radarr_mode=radarr_mode)
+    else:
+        raise ValueError(f"Unknown scan type: {scan_type}")
+
+    cache_payload = json.dumps(
+        {"schema": SCAN_CACHE_SCHEMA, "root": root_key, "data": data},
+        ensure_ascii=False,
+        default=_scan_cache_json_default,
+        separators=(",", ":"),
+    )
+    cache_data = json.loads(cache_payload)["data"]
+    try:
+        temp_path = cache_path.with_suffix(f".{uuid.uuid4().hex}.tmp")
+        temp_path.write_text(cache_payload, encoding="utf-8")
+        temp_path.replace(cache_path)
+    except OSError as exc:
+        logger.warning("Could not save scan cache for %s: %s", root, exc)
+    _SCAN_CACHE_MEMORY[cache_key] = cache_data
+    _SCAN_CACHE_MEMORY_ROOTS[cache_key] = root_key
+    if len(_SCAN_CACHE_MEMORY) > 8:
+        oldest_key = next(iter(_SCAN_CACHE_MEMORY))
+        _SCAN_CACHE_MEMORY.pop(oldest_key)
+        _SCAN_CACHE_MEMORY_ROOTS.pop(oldest_key, None)
+    return cache_data
 
 
 def safe_move(source: Path, target: Path) -> None:
@@ -985,7 +1092,9 @@ def _build_directory_tree(groups: list[Any], empty_folders: list[EmptyFolderEntr
         node = ensure_node(parts)
         node.file_count += group.count
         node.series_count += 1
-        node.series_groups.append(group)
+        # The tree only needs an anchor for its links. Keeping complete groups
+        # here duplicates every entry in the persistent scan cache.
+        node.series_groups.append({"anchor_id": group.anchor_id})
         for depth in range(len(parts)):
             ancestor = ensure_node(parts[:depth])
             ancestor.file_count += group.count

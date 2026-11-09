@@ -458,6 +458,19 @@ button:disabled {
   gap: 12px;
 }
 
+.pagination-controls {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  margin-top: 20px;
+}
+
+.pagination-controls > span {
+  color: var(--muted);
+  text-align: center;
+}
+
 .folder-card {
   padding: 16px;
   border: 1px solid var(--line);

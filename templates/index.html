@@ -43,6 +43,20 @@
         </p>
       </div>
       <div class="hero-side">
+        {% if media_mode %}
+        <div class="stat-card">
+          <strong>{{ scan_stats.generic_files }}</strong>
+          <span>arquivos no catálogo</span>
+        </div>
+        <div class="stat-card">
+          <strong>{{ scan_stats.generic_unorganized }}</strong>
+          <span>precisam organizar</span>
+        </div>
+        <div class="stat-card">
+          <strong>{{ scan_stats.generic_groups }}</strong>
+          <span>pastas</span>
+        </div>
+        {% else %}
         <div class="stat-card">
           <strong>{{ scan_stats.series_groups }}</strong>
           <span>pastas de série</span>
@@ -55,6 +69,7 @@
           <strong>{{ scan_stats.metadata_mismatches }}</strong>
           <span>metadados divergentes</span>
         </div>
+        {% endif %}
       </div>
     </section>
 
@@ -88,10 +103,11 @@
           </label>
         </div>
         <div class="toolbar">
-          <button type="submit" class="primary">Atualizar varredura</button>
+          <button type="submit" class="primary" name="refresh_scan" value="1">Atualizar varredura</button>
           <div class="hintbox">
             <strong>{{ current_library.label }}</strong>
             <span>{{ current_library.scan_root }} → {{ current_library.destination_root }}</span>
+            <small>O catálogo usa cache. “Atualizar varredura” procura mudanças feitas fora deste app.</small>
           </div>
         </div>
       </form>
@@ -387,6 +403,22 @@
         {% endif %}
       </form>
 
+      {% if pagination.total_pages > 1 %}
+      <form method="get" action="/" class="pagination-controls">
+        <input type="hidden" name="library" value="{{ current_library.key }}">
+        <input type="hidden" name="root" value="{{ scan_root }}">
+        <input type="hidden" name="destination_root" value="{{ destination_root }}">
+        <input type="hidden" name="filter_text" value="{{ filter_text }}">
+        {% if pagination.page > 1 %}
+        <button type="submit" name="page" value="{{ pagination.page - 1 }}" class="secondary">Anterior</button>
+        {% else %}<span></span>{% endif %}
+        <span>Página {{ pagination.page }} de {{ pagination.total_pages }} • {{ pagination.total_items }} itens</span>
+        {% if pagination.page < pagination.total_pages %}
+        <button type="submit" name="page" value="{{ pagination.page + 1 }}" class="secondary">Próxima</button>
+        {% else %}<span></span>{% endif %}
+      </form>
+      {% endif %}
+
       {% if unrecognized_groups %}
       <section class="unrecognized-panel" aria-label="Pastas não identificadas">
         <div class="section-head compact">
@@ -563,6 +595,22 @@
         <p class="muted">Nenhum arquivo cru detectado no formato atual.</p>
         {% endif %}
       </form>
+      {% if pattern_pagination.total_pages > 1 %}
+      <form method="get" action="/" class="pagination-controls">
+        <input type="hidden" name="library" value="{{ current_library.key }}">
+        <input type="hidden" name="root" value="{{ scan_root }}">
+        <input type="hidden" name="destination_root" value="{{ destination_root }}">
+        <input type="hidden" name="filter_text" value="{{ filter_text }}">
+        <input type="hidden" name="tab" value="patterns">
+        {% if pattern_pagination.page > 1 %}
+        <button type="submit" name="pattern_page" value="{{ pattern_pagination.page - 1 }}" class="secondary">Anterior</button>
+        {% else %}<span></span>{% endif %}
+        <span>Página {{ pattern_pagination.page }} de {{ pattern_pagination.total_pages }} • {{ pattern_pagination.total_items }} grupos</span>
+        {% if pattern_pagination.page < pattern_pagination.total_pages %}
+        <button type="submit" name="pattern_page" value="{{ pattern_pagination.page + 1 }}" class="secondary">Próxima</button>
+        {% else %}<span></span>{% endif %}
+      </form>
+      {% endif %}
     </section>
 
     <section id="metadata" class="tab-panel" data-tab-panel="metadata" role="tabpanel" aria-labelledby="metadata-tab">
@@ -788,7 +836,7 @@
           <h2>Arquivos sem temporada e episódio</h2>
           <p class="muted">Filmes e conteúdo cristão usam a estrutura Radarr: título (ano)/título (ano). Livros e audiolivros permanecem na pasta atual.</p>
         </div>
-        <span class="summary-pill">{{ generic_groups|length }} pastas</span>
+        <span class="summary-pill">{{ generic_group_count }} pastas • {{ pagination.total_items }} arquivos</span>
       </div>
       <form method="post" action="/rename-files" id="generic-form" class="stack">
         <input type="hidden" name="library" value="{{ current_library.key }}">
@@ -853,6 +901,21 @@
         <p class="muted">Nenhum arquivo compatível encontrado nesta biblioteca.</p>
         {% endif %}
       </form>
+      {% if pagination.total_pages > 1 %}
+      <form method="get" action="/" class="pagination-controls">
+        <input type="hidden" name="library" value="{{ current_library.key }}">
+        <input type="hidden" name="root" value="{{ scan_root }}">
+        <input type="hidden" name="destination_root" value="{{ destination_root }}">
+        <input type="hidden" name="filter_text" value="{{ filter_text }}">
+        {% if pagination.page > 1 %}
+        <button type="submit" name="page" value="{{ pagination.page - 1 }}" class="secondary">Anterior</button>
+        {% else %}<span></span>{% endif %}
+        <span>Página {{ pagination.page }} de {{ pagination.total_pages }} • {{ pagination.total_items }} arquivos</span>
+        {% if pagination.page < pagination.total_pages %}
+        <button type="submit" name="page" value="{{ pagination.page + 1 }}" class="secondary">Próxima</button>
+        {% else %}<span></span>{% endif %}
+      </form>
+      {% endif %}
     </section>
     {% endif %}
   </main>

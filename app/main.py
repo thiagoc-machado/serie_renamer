@@ -21,8 +21,6 @@ from .services import (
     list_history,
     load_aliases,
     parse_form_instructions,
-    scan_library,
-    scan_generic_library,
     undo_batch,
     TMDB_DEFAULT_LANGUAGE,
 )
@@ -67,6 +65,8 @@ LIBRARIES = [
 
 LIBRARY_MAP = {item["key"]: item for item in LIBRARIES}
 DEFAULT_LIBRARY_KEY = "series"
+SERIES_PAGE_SIZE = 50
+GENERIC_PAGE_SIZE = 100
 ALLOWED_ROOTS = [item["scan_root"].resolve() for item in LIBRARIES]
 services.ALLOWED_ROOTS = ALLOWED_ROOTS
 SERIES_LIBRARY_ROOT = LIBRARY_MAP[DEFAULT_LIBRARY_KEY]["scan_root"].resolve()
@@ -104,18 +104,105 @@ def render_index(
     message: str | None = None,
     result: dict | None = None,
     undo_result: dict | None = None,
+    page: int = 1,
+    pattern_page: int = 1,
+    force_refresh: bool = False,
 ) -> HTMLResponse:
     current_library = get_library(library_key)
-    scan_data = scan_library(scan_root, filter_text=filter_text)
-    generic_groups = (
-        scan_generic_library(
+    if (result and result.get("updated")) or (undo_result and undo_result.get("updated")):
+        force_refresh = True
+
+    if library_key == "series":
+        scan_data = services.cached_scan(
             scan_root,
+            scan_type="series",
+            filter_text=filter_text,
+            force_refresh=force_refresh,
+        )
+        generic_groups = []
+        raw_series_groups = list(scan_data["series_groups"])
+        raw_pattern_groups = list(scan_data["pattern_groups"])
+        series_group_count = len(raw_series_groups)
+        pattern_group_count = len(raw_pattern_groups)
+        for group in raw_series_groups:
+            group["entries"].sort(key=lambda entry: (
+                entry["organized"], entry["season"], entry["episode"], entry["filename"].casefold()
+            ))
+        raw_series_groups.sort(key=lambda group: (-group["attention_count"], group["folder_path"].casefold()))
+        raw_pattern_groups.sort(key=lambda group: (-group["count"], group["folder_path"].casefold()))
+        series_total_pages = max(1, (len(raw_series_groups) + SERIES_PAGE_SIZE - 1) // SERIES_PAGE_SIZE)
+        pattern_total_pages = max(1, (len(raw_pattern_groups) + SERIES_PAGE_SIZE - 1) // SERIES_PAGE_SIZE)
+        page = min(max(page, 1), series_total_pages)
+        pattern_page = min(max(pattern_page, 1), pattern_total_pages)
+        start = (page - 1) * SERIES_PAGE_SIZE
+        pattern_start = (pattern_page - 1) * SERIES_PAGE_SIZE
+        scan_data = {
+            **scan_data,
+            "series_groups": raw_series_groups[start:start + SERIES_PAGE_SIZE],
+            "pattern_groups": raw_pattern_groups[pattern_start:pattern_start + SERIES_PAGE_SIZE],
+        }
+        pagination = {
+            "page": page,
+            "total_pages": series_total_pages,
+            "total_items": len(raw_series_groups),
+            "page_size": SERIES_PAGE_SIZE,
+        }
+        pattern_pagination = {
+            "page": pattern_page,
+            "total_pages": pattern_total_pages,
+            "total_items": len(raw_pattern_groups),
+            "page_size": SERIES_PAGE_SIZE,
+        }
+    else:
+        generic_groups = services.cached_scan(
+            scan_root,
+            scan_type="generic",
             filter_text=filter_text,
             radarr_mode=library_key in {"movies", "cristaos"},
+            force_refresh=force_refresh,
         )
-        if library_key != "series"
-        else []
-    )
+        generic_group_count = len(generic_groups)
+        generic_attention_count = sum(group["attention_count"] for group in generic_groups)
+        all_entries = [entry for group in generic_groups for entry in group["entries"]]
+        all_entries.sort(key=lambda entry: (
+            entry["organized"],
+            entry["relative_dir"].casefold(),
+            entry["filename"].casefold(),
+        ))
+        total_items = len(all_entries)
+        total_pages = max(1, (total_items + GENERIC_PAGE_SIZE - 1) // GENERIC_PAGE_SIZE)
+        page = min(max(page, 1), total_pages)
+        page_entries = all_entries[(page - 1) * GENERIC_PAGE_SIZE:page * GENERIC_PAGE_SIZE]
+        grouped_page: dict[str, list[dict]] = {}
+        for entry in page_entries:
+            grouped_page.setdefault(entry["relative_dir"], []).append(entry)
+        original_groups = {group["folder_path"]: group for group in generic_groups}
+        generic_groups = []
+        for folder_path, entries in grouped_page.items():
+            original = original_groups[folder_path]
+            generic_groups.append({
+                "folder_path": folder_path,
+                "folder_name": original["folder_name"],
+                "count": len(entries),
+                "attention_count": sum(1 for entry in entries if not entry["organized"]),
+                "entries": entries,
+            })
+        generic_groups.sort(key=lambda group: (
+            group["attention_count"] == 0,
+            group["folder_path"].casefold(),
+        ))
+        scan_data = {
+            "series_groups": [], "pattern_groups": [], "empty_folders": [],
+            "metadata_mismatches": [], "unrecognized_groups": [],
+            "directory_tree": None, "pattern_directory_tree": None,
+        }
+        pagination = {
+            "page": page,
+            "total_pages": total_pages,
+            "total_items": total_items,
+            "page_size": GENERIC_PAGE_SIZE,
+        }
+        pattern_pagination = {"page": 1, "total_pages": 1, "total_items": 0, "page_size": SERIES_PAGE_SIZE}
     aliases = load_aliases()
 
     return templates.TemplateResponse(
@@ -141,15 +228,21 @@ def render_index(
             "directory_tree": scan_data["directory_tree"],
             "pattern_directory_tree": scan_data["pattern_directory_tree"],
             "scan_stats": {
-                "series_groups": len(scan_data["series_groups"]),
-                "pattern_groups": len(scan_data["pattern_groups"]),
+                "series_groups": series_group_count if library_key == "series" else 0,
+                "pattern_groups": pattern_group_count if library_key == "series" else 0,
                 "empty_folders": len(scan_data["empty_folders"]),
                 "metadata_mismatches": len(scan_data["metadata_mismatches"]),
                 "unrecognized_groups": len(scan_data["unrecognized_groups"]),
                 "aliases": len(aliases),
+                "generic_groups": generic_group_count if library_key != "series" else 0,
+                "generic_files": pagination["total_items"] if library_key != "series" else 0,
+                "generic_unorganized": generic_attention_count if library_key != "series" else 0,
             },
+            "generic_group_count": generic_group_count if library_key != "series" else 0,
             "generic_groups": generic_groups,
             "media_mode": library_key != "series",
+            "pagination": pagination,
+            "pattern_pagination": pattern_pagination,
         },
     )
 
@@ -224,6 +317,9 @@ async def index(
     root: str | None = None,
     destination_root: str | None = None,
     filter_text: str = "",
+    page: int = 1,
+    pattern_page: int = 1,
+    refresh_scan: int = 0,
 ) -> HTMLResponse:
     current_library = get_library(library)
     try:
@@ -235,6 +331,9 @@ async def index(
             scan_root=scan_root,
             destination_root=target_root,
             filter_text=filter_text,
+            page=page,
+            pattern_page=pattern_page,
+            force_refresh=bool(refresh_scan),
         )
 
     except ValueError as exc:
@@ -699,6 +798,7 @@ async def save_alias(
         destination_root=target_root,
         filter_text=filter_text,
         message=f"Alias salvo para {clean_key}." if clean_key and clean_value else "Nenhuma alteração salva.",
+        force_refresh=bool(clean_key and clean_value),
     )
 
 
@@ -745,4 +845,5 @@ async def delete_alias(
             if removed
             else "Nenhum alias removido."
         ),
+        force_refresh=bool(removed),
     )
