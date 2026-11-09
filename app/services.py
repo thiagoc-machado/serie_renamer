@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import logging
 import os
 import re
 import shutil
@@ -14,6 +15,8 @@ from pathlib import Path
 from typing import Any
 from urllib.parse import quote, urlencode
 from urllib.request import Request, urlopen
+
+logger = logging.getLogger(__name__)
 
 try:
     from dotenv import load_dotenv
@@ -1318,9 +1321,13 @@ def read_mp4_metadata(file_path: Path) -> dict[str, list[Any]] | None:
         return None
     try:
         media = MP4(file_path)
-    except MP4StreamInfoError:
+        return {key: list(value) for key, value in media.tags.items()} if media.tags else {}
+    except Exception as exc:
+        # Malformed MP4 atoms can raise parser errors such as AtomError, not
+        # only MP4StreamInfoError. Metadata is optional, so let the scan fall
+        # back to the filename and folder instead of failing the whole page.
+        logger.warning("Could not read MP4 metadata from %s: %s", file_path, exc)
         return None
-    return {key: list(value) for key, value in media.tags.items()} if media.tags else {}
 
 
 def write_mp4_metadata(file_path: Path, series_name: str, season: int, episode: int, episode_title: str) -> None:

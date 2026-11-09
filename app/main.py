@@ -444,7 +444,16 @@ async def rename_files(
     organize = current_library["key"] in {"movies", "cristaos"}
     result = apply_generic_changes(entries, destination_root=target_root,
                                    organize_into_folders=organize, dry_run=False)
-    message = "Arquivos organizados com segurança."
+    updated_count = len(result.get("updated", []))
+    error_count = len(result.get("errors", []))
+    if error_count and updated_count:
+        message = f"{updated_count} arquivo(s) organizado(s); {error_count} não puderam ser organizados."
+    elif error_count:
+        message = f"Nenhum arquivo foi organizado. {error_count} erro(s) para revisar."
+    elif updated_count:
+        message = "Arquivos organizados com segurança."
+    else:
+        message = "Nenhum arquivo foi alterado."
     if result.get("history_batch_id"):
         message = f"{message} Lote salvo para desfazer: {result['history_batch_id']}."
     return render_index(request, library_key=current_library["key"], scan_root=source_root,
