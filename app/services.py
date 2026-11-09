@@ -41,6 +41,11 @@ VIDEO_EXTENSIONS = {
     ".wmv", ".flv", ".mpg", ".mpeg", ".3gp", ".vob", ".ogv",
 }
 MP4_EXTENSIONS = {".mp4", ".m4v", ".mov"}
+MOVIE_SIDECAR_EXTENSIONS = {
+    ".ass", ".idx", ".jpe", ".jpeg", ".jpg", ".nfo", ".png", ".sami",
+    ".smi", ".ssa", ".srt", ".sub", ".sup", ".ttml", ".vtt", ".webp",
+    ".xml",
+}
 GENERIC_EXTENSIONS = VIDEO_EXTENSIONS | {
     ".pdf", ".epub", ".mobi", ".azw", ".azw3", ".mp3", ".m4a", ".flac", ".wav", ".ogg",
 }
@@ -1269,30 +1274,116 @@ def apply_generic_changes(
     dry_run: bool = False,
 ) -> dict[str, Any]:
     result: dict[str, Any] = {"updated": [], "errors": [], "preview": [], "history_batch_id": None, "integrations": []}
+    planned_moves: list[tuple[Path, Path]] = []
     operations: list[dict[str, Any]] = []
     occupied: set[Path] = set()
+
     for source, raw_title in entries:
         source = source.resolve()
         title = sanitize_name(raw_title)
         if not title:
             result["errors"].append(f"{source.name}: título vazio.")
             continue
+
         target_dir = destination_root / title if organize_into_folders else source.parent
-        target = target_dir / f"{title}{source.suffix.lower()}"
-        if target in occupied or (target.exists() and target != source):
-            result["errors"].append(f"{source.name}: destino já existe: {target}")
-            continue
-        occupied.add(target)
-        item = {"source": str(source), "target": str(target), "title": title, "conflict": ""}
-        result["preview"].append(item)
-        if dry_run:
-            continue
+        sources = [source]
+        if organize_into_folders:
+            source_stem = source.stem.casefold()
+            try:
+                sidecars = [
+                    child
+                    for child in source.parent.iterdir()
+                    if (
+                        child.is_file()
+                        and child.suffix.lower() in MOVIE_SIDECAR_EXTENSIONS
+                        and (
+                            child.stem.casefold() == source_stem
+                            or any(
+                                child.stem.casefold().startswith(source_stem + separator)
+                                for separator in (".", "-", "_")
+                            )
+                        )
+                    )
+                ]
+            except OSError as exc:
+                result["errors"].append(f"{source.name}: não foi possível listar arquivos auxiliares: {exc}")
+                continue
+            sources.extend(sidecars)
+
+        for move_source in sources:
+            if move_source == source:
+                target_name = f"{title}{source.suffix.lower()}"
+            else:
+                # Keep language/edition suffixes such as .pt-BR.srt when the
+                # movie and its companion files are renamed together.
+                companion_suffix = move_source.name[len(source.stem):]
+                target_name = f"{title}{companion_suffix}"
+            target = target_dir / target_name
+            target_key = target.resolve()
+            source_key = move_source.resolve()
+            conflict = ""
+            if target_key in occupied:
+                conflict = "Outro arquivo do lote usa o mesmo destino."
+            elif target.exists() and target_key != source_key:
+                conflict = "Arquivo de destino já existe."
+            occupied.add(target_key)
+            result["preview"].append(
+                {"source": str(move_source), "target": str(target), "title": title, "conflict": conflict}
+            )
+            if conflict:
+                result["errors"].append(f"{move_source.name}: {conflict} Destino: {target}")
+            else:
+                planned_moves.append((move_source, target))
+
+    # Do not start a batch when any selected item has a blank title, a
+    # duplicate destination, or a destination that already exists.
+    if result["errors"] or dry_run:
+        return result
+
+    moved: list[tuple[Path, Path, str]] = []
+    for source, target in planned_moves:
         try:
             safe_move(source, target)
-            result["updated"].append(f"{source.name} -> {target}")
-            operations.append({"source": str(source), "target": str(target), "type": "rename"})
+            if source != target:
+                line = f"{source.name} -> {target}"
+                result["updated"].append(line)
+                moved.append((source, target, line))
+                operations.append({"source": str(source), "target": str(target), "type": "rename"})
         except Exception as exc:  # pragma: no cover
             result["errors"].append(f"{source.name}: {exc}")
+            rollback_errors: list[str] = []
+            failed_rollbacks: set[tuple[Path, Path]] = set()
+            for moved_source, moved_target, line in reversed(moved):
+                try:
+                    safe_move(moved_target, moved_source)
+                except Exception as rollback_exc:  # pragma: no cover
+                    failed_rollbacks.add((moved_source, moved_target))
+                    rollback_errors.append(f"{moved_target}: não foi possível reverter para {moved_source}: {rollback_exc}")
+            if rollback_errors:
+                result["errors"].extend(rollback_errors)
+                result["updated"] = [
+                    line for moved_source, moved_target, line in moved
+                    if (moved_source, moved_target) in failed_rollbacks
+                ]
+                remaining_operations = [
+                    operation for operation in operations
+                    if (Path(operation["source"]), Path(operation["target"])) in failed_rollbacks
+                ]
+                if remaining_operations:
+                    batch_id = uuid.uuid4().hex[:12]
+                    save_history({
+                        "batch_id": batch_id,
+                        "created_at": datetime.now(timezone.utc).isoformat(),
+                        "operation_count": len(remaining_operations),
+                        "operations": remaining_operations,
+                    })
+                    result["history_batch_id"] = batch_id
+                    result["integrations"] = trigger_integrations()
+            else:
+                result["updated"].clear()
+                result["errors"].append("O lote foi revertido após a falha; nenhum movimento anterior permaneceu aplicado.")
+            return result
+
     if operations:
         batch_id = uuid.uuid4().hex[:12]
         save_history({
