@@ -1429,18 +1429,19 @@ def write_mp4_metadata(file_path: Path, series_name: str, season: int, episode: 
 
     try:
         media = MP4(file_path)
-    except MP4StreamInfoError:
-        return
-
-    title = episode_title.strip() or f"{series_name} - S{season:02d}E{episode:02d}"
-    media["\xa9nam"] = [title]
-    media["tvsh"] = [series_name]
-    media["tven"] = [f"S{season:02d}E{episode:02d}"]
-    media["tvsn"] = [season]
-    media["tves"] = [episode]
-    media["stik"] = [10]
-    media["desc"] = [title]
-    media.save()
+        title = episode_title.strip() or f"{series_name} - S{season:02d}E{episode:02d}"
+        media["\xa9nam"] = [title]
+        media["tvsh"] = [series_name]
+        media["tven"] = [f"S{season:02d}E{episode:02d}"]
+        media["tvsn"] = [season]
+        media["tves"] = [episode]
+        media["stik"] = [10]
+        media["desc"] = [title]
+        media.save()
+    except Exception as exc:
+        # Writing optional tags must not prevent the video file from being
+        # renamed when its MP4 container is malformed or unsupported.
+        logger.warning("Could not write MP4 metadata to %s: %s", file_path, exc)
 
 
 def restore_mp4_metadata(file_path: Path, metadata: dict[str, list[Any]] | None) -> None:
@@ -1450,14 +1451,13 @@ def restore_mp4_metadata(file_path: Path, metadata: dict[str, list[Any]] | None)
         return
     try:
         media = MP4(file_path)
-    except MP4StreamInfoError:
-        return
-
-    media.delete()
-    if metadata:
-        for key, value in metadata.items():
-            media[key] = value
-    media.save()
+        media.delete()
+        if metadata:
+            for key, value in metadata.items():
+                media[key] = value
+        media.save()
+    except Exception as exc:
+        logger.warning("Could not restore MP4 metadata in %s: %s", file_path, exc)
 
 
 def write_mp4_series_name(file_path: Path, series_name: str) -> None:
@@ -1468,15 +1468,13 @@ def write_mp4_series_name(file_path: Path, series_name: str) -> None:
 
     try:
         media = MP4(file_path)
-    except MP4StreamInfoError:
-        return
-
-    clean_series_name = sanitize_name(series_name)
-    if not clean_series_name:
-        return
-
-    media["tvsh"] = [clean_series_name]
-    media.save()
+        clean_series_name = sanitize_name(series_name)
+        if not clean_series_name:
+            return
+        media["tvsh"] = [clean_series_name]
+        media.save()
+    except Exception as exc:
+        logger.warning("Could not write MP4 series metadata to %s: %s", file_path, exc)
 
 
 def build_preview(instructions: list[RenameInstruction]) -> dict[str, Any]:
